@@ -4,80 +4,690 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloudflare Subdomain Manager</title>
+    <!-- Tailwind CSS untuk Styling Premium -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            theme: { extend: { colors: { cf: { brand: '#f38020', brandHover: '#e06f10' } } } }
+            theme: {
+                extend: {
+                    colors: {
+                        cf: {
+                            brand: '#f38020',
+                            brandHover: '#e06f10',
+                            darkBg: '#090d16',
+                            panelBg: '#111827',
+                            border: '#1f2937'
+                        }
+                    }
+                }
+            }
         }
     </script>
+    <!-- Font Inter & Google Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #090d16;
+        }
+    </style>
 </head>
-<body class="bg-slate-900 min-h-screen flex items-center justify-center p-4">
-    <div id="root"></div>
+<body class="min-h-screen text-slate-300 flex flex-col justify-between">
 
+    <!-- Container Utama React -->
+    <div id="root" class="flex-grow flex items-center justify-center p-4"></div>
+
+    <!-- React 18 & Babel CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <!-- Script Utama React -->
     <script type="text/babel">
-        // KONFIGURASI TERSEMBUH
-        const CONFIG_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby00D0fbZlvV_BHkXc7q4ljcv_6CQLUFKDa7ow_GPHDQXpNkpVmrNA4ugjeQk3y3ngr/exec";
+        const CONFIG_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyTEWBVyF_mT6uEbB5MTafFdcSiDSt_VRO86Ef3vqh25FoCYk1r2YgbxkTz5Wb91s6E/exec";
 
-        const { useState } = React;
+        const { useState, useEffect } = React;
 
         function App() {
+            // State Otentikasi
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [appPassword, setAppPassword] = useState("");
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState("");
+            const [rememberMe, setRememberMe] = useState(true);
+
+            // State Diagnosis Koneksi
+            const [diagnosing, setDiagnosing] = useState(false);
+            const [diagnosticResult, setDiagnosticResult] = useState(null);
+
+            // State Dasbor Cloudflare
+            const [apiToken, setApiToken] = useState("");
+            const [zoneId, setZoneId] = useState("");
+            const [records, setRecords] = useState([]);
+            const [recordsLoading, setRecordsLoading] = useState(false);
+            const [recordsError, setRecordsError] = useState("");
+            
+            // State Form Pembuatan Record
+            const [dnsType, setDnsType] = useState("A");
+            const [subdomainName, setSubdomainName] = useState("");
+            const [targetContent, setTargetContent] = useState("");
+            const [isProxied, setIsProxied] = useState(true);
+            const [ttlValue, setTtlValue] = useState(1); // 1 = Auto
+
+            // State Filter & Pencarian
+            const [searchQuery, setSearchQuery] = useState("");
+            const [filterType, setFilterType] = useState("ALL");
+
+            // Cek status sesi tersimpan saat pertama kali dimuat
+            useEffect(() => {
+                const savedLogin = localStorage.getItem("cf_logged_in");
+                const savedPassword = localStorage.getItem("cf_saved_password");
+                const savedToken = localStorage.getItem("cf_api_token");
+                const savedZone = localStorage.getItem("cf_zone_id");
+
+                if (savedPassword) {
+                    setAppPassword(savedPassword);
+                }
+                if (savedLogin === "true" && savedPassword) {
+                    setIsLoggedIn(true);
+                }
+                if (savedToken) setApiToken(savedToken);
+                if (savedZone) setZoneId(savedZone);
+            }, []);
+
+            // Ambil daftar DNS jika sudah masuk & kredensial terisi
+            useEffect(() => {
+                if (isLoggedIn && apiToken && zoneId) {
+                    fetchDnsRecords();
+                }
+            }, [isLoggedIn, apiToken, zoneId]);
 
             const handleLogin = async (e) => {
                 e.preventDefault();
                 setLoading(true);
                 setError("");
+                setDiagnosticResult(null);
+
+                if (!appPassword.trim()) {
+                    setError("Silakan masukkan Sandi Aplikasi terlebih dahulu.");
+                    setLoading(false);
+                    return;
+                }
 
                 try {
                     const response = await fetch(CONFIG_APPS_SCRIPT_URL, {
                         method: "POST",
                         mode: "cors",
+                        credentials: "omit",
                         headers: { "Content-Type": "text/plain" },
-                        body: JSON.stringify({ action: "verifyLogin", appPassword: appPassword })
+                        body: JSON.stringify({
+                            action: "verifyLogin",
+                            appPassword: appPassword.trim()
+                        })
                     });
-                    const data = await response.json();
 
-                    if (data.success) {
-                        window.location.reload(); // Di sini Anda bisa mengarahkan ke state dashboard
+                    const text = await response.text();
+                    let data;
+                    try {
+                        data = JSON.parse(text);
+                    } catch (e) {
+                        throw new Error("Balasan Google Apps Script tidak valid atau Anda salah mengatur deployment.");
+                    }
+
+                    if (data && data.success) {
+                        setIsLoggedIn(true);
+                        if (rememberMe) {
+                            localStorage.setItem("cf_logged_in", "true");
+                            localStorage.setItem("cf_saved_password", appPassword.trim());
+                        } else {
+                            localStorage.removeItem("cf_logged_in");
+                            localStorage.removeItem("cf_saved_password");
+                        }
                     } else {
-                        setError("Sandi Aplikasi salah.");
+                        setError(data && data.errors ? data.errors[0].message : "Sandi Aplikasi salah.");
                     }
                 } catch (err) {
-                    setError("Gagal terhubung ke backend.");
+                    setError("Gagal terhubung: " + err.message);
                 } finally {
                     setLoading(false);
                 }
             };
 
-            return (
-                <div className="max-w-md w-full bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-700">
-                    <div className="text-center mb-8">
-                        <h1 className="text-2xl font-bold text-white">Cloudflare Manager</h1>
-                        <p className="text-slate-400 text-sm mt-2">Masukkan sandi untuk melanjutkan</p>
+            const runDiagnostic = async () => {
+                setDiagnosing(true);
+                setDiagnosticResult(null);
+                try {
+                    const res = await fetch(CONFIG_APPS_SCRIPT_URL + "?test=1", {
+                        method: "GET",
+                        mode: "cors",
+                        credentials: "omit"
+                    });
+                    const text = await res.text();
+                    if (text.includes("Koneksi Jembatan Berhasil") || text.includes("Active")) {
+                        setDiagnosticResult({
+                            status: "SUCCESS",
+                            message: "Koneksi ke Apps Script Berhasil! Tautan aktif dan siap menerima data."
+                        });
+                    } else {
+                        setDiagnosticResult({
+                            status: "WARNING",
+                            message: "Tautan merespons, namun format data berbeda. Pastikan Anda telah menggunakan kode 'apps-script.js' terbaru."
+                        });
+                    }
+                } catch (err) {
+                    setDiagnosticResult({
+                        status: "ERROR",
+                        message: "Gagal terhubung secara total. Pastikan opsi 'Who has access' di Google Apps Script disetel ke 'Anyone'."
+                    });
+                } finally {
+                    setDiagnosing(false);
+                }
+            };
+
+            const handleLogout = () => {
+                setIsLoggedIn(false);
+                localStorage.removeItem("cf_logged_in");
+            };
+
+            const fetchDnsRecords = async () => {
+                if (!apiToken || !zoneId) return;
+                setRecordsLoading(true);
+                setRecordsError("");
+
+                try {
+                    const response = await fetch(CONFIG_APPS_SCRIPT_URL, {
+                        method: "POST",
+                        mode: "cors",
+                        credentials: "omit",
+                        headers: { "Content-Type": "text/plain" },
+                        body: JSON.stringify({
+                            action: "list",
+                            appPassword: appPassword.trim(),
+                            apiToken: apiToken.trim(),
+                            zoneId: zoneId.trim()
+                        })
+                    });
+
+                    const text = await response.text();
+                    const data = JSON.parse(text);
+
+                    if (data.success) {
+                        setRecords(data.result || []);
+                    } else {
+                        setRecordsError(data.errors && data.errors[0] ? data.errors[0].message : "Gagal mengambil data DNS.");
+                    }
+                } catch (err) {
+                    setRecordsError("Gagal terhubung ke Proxy Cloudflare: " + err.message);
+                } finally {
+                    setRecordsLoading(false);
+                }
+            };
+
+            const handleCreateSubdomain = async (e) => {
+                e.preventDefault();
+                if (!subdomainName || !targetContent) {
+                    alert("Harap lengkapi nama subdomain dan target konten!");
+                    return;
+                }
+                
+                setRecordsLoading(true);
+                try {
+                    const recordData = {
+                        type: dnsType,
+                        name: subdomainName.trim(),
+                        content: targetContent.trim(),
+                        ttl: parseInt(ttlValue),
+                        proxied: dnsType === "A" || dnsType === "AAAA" || dnsType === "CNAME" ? isProxied : false
+                    };
+
+                    const response = await fetch(CONFIG_APPS_SCRIPT_URL, {
+                        method: "POST",
+                        mode: "cors",
+                        credentials: "omit",
+                        headers: { "Content-Type": "text/plain" },
+                        body: JSON.stringify({
+                            action: "create",
+                            appPassword: appPassword.trim(),
+                            apiToken: apiToken.trim(),
+                            zoneId: zoneId.trim(),
+                            recordData: recordData
+                        })
+                    });
+
+                    const text = await response.text();
+                    const data = JSON.parse(text);
+
+                    if (data.success) {
+                        setSubdomainName("");
+                        setTargetContent("");
+                        alert("Subdomain berhasil dibuat!");
+                        fetchDnsRecords();
+                    } else {
+                        alert("Gagal membuat subdomain: " + (data.errors && data.errors[0] ? data.errors[0].message : "Error tidak diketahui"));
+                        setRecordsLoading(false);
+                    }
+                } catch (err) {
+                    alert("Koneksi gagal: " + err.message);
+                    setRecordsLoading(false);
+                }
+            };
+
+            const handleDeleteRecord = async (recordId, recordName) => {
+                if (!confirm(`Apakah Anda yakin ingin menghapus subdomain "${recordName}"?`)) return;
+
+                setRecordsLoading(true);
+                try {
+                    const response = await fetch(CONFIG_APPS_SCRIPT_URL, {
+                        method: "POST",
+                        mode: "cors",
+                        credentials: "omit",
+                        headers: { "Content-Type": "text/plain" },
+                        body: JSON.stringify({
+                            action: "delete",
+                            appPassword: appPassword.trim(),
+                            apiToken: apiToken.trim(),
+                            zoneId: zoneId.trim(),
+                            recordId: recordId
+                        })
+                    });
+
+                    const text = await response.text();
+                    const data = JSON.parse(text);
+
+                    if (data.success) {
+                        alert("Subdomain berhasil dihapus!");
+                        fetchDnsRecords();
+                    } else {
+                        alert("Gagal menghapus: " + (data.errors && data.errors[0] ? data.errors[0].message : "Error"));
+                        setRecordsLoading(false);
+                    }
+                } catch (err) {
+                    alert("Koneksi gagal: " + err.message);
+                    setRecordsLoading(false);
+                }
+            };
+
+            const saveCredentials = (token, zone) => {
+                setApiToken(token);
+                setZoneId(zone);
+                localStorage.setItem("cf_api_token", token);
+                localStorage.setItem("cf_zone_id", zone);
+                alert("Kredensial disimpan lokal di browser!");
+            };
+
+            const filteredRecords = records.filter(rec => {
+                const matchesSearch = rec.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                      rec.content.toLowerCase().includes(searchQuery.toLowerCase());
+                const matchesType = filterType === "ALL" || rec.type === filterType;
+                return matchesSearch && matchesType;
+            });
+
+            // =========================================================================
+            // RENDERING HALAMAN LOGIN (Sandi & Visual Hierarchy Diperbaiki)
+            // =========================================================================
+            if (!isLoggedIn) {
+                return (
+                    <div className="max-w-md w-full bg-gray-900 rounded-2xl shadow-2xl p-8 border border-gray-800">
+                        <div className="text-center mb-6">
+                            <div className="inline-flex items-center justify-center p-3.5 bg-orange-500/10 text-cf-brand rounded-2xl mb-4 border border-orange-500/20">
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                            <h1 className="text-2xl font-extrabold text-white tracking-tight">Cloudflare Manager</h1>
+                            <p className="text-slate-400 text-xs mt-2.5 leading-relaxed">Gunakan sandi keamanan Anda untuk mengautentikasi koneksi jembatan proxy</p>
+                        </div>
+
+                        <form onSubmit={handleLogin} className="space-y-5">
+                            <div>
+                                <label className="block text-slate-400 text-xs font-semibold tracking-wider uppercase mb-2">Sandi Keamanan</label>
+                                <input 
+                                    type="password"
+                                    value={appPassword}
+                                    onChange={(e) => setAppPassword(e.target.value)}
+                                    placeholder="Masukkan Sandi (Contoh: P455w0rd)"
+                                    className="w-full p-3 bg-slate-950 border border-gray-800 rounded-xl text-white placeholder-slate-600 focus:border-cf-brand focus:ring-1 focus:ring-cf-brand outline-none transition-all text-sm font-medium"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center">
+                                    <input 
+                                        type="checkbox" 
+                                        id="remember" 
+                                        checked={rememberMe}
+                                        onChange={(e) => setRememberMe(e.target.checked)}
+                                        className="rounded border-gray-800 text-cf-brand focus:ring-cf-brand bg-slate-950"
+                                    />
+                                    <label htmlFor="remember" className="ml-2.5 text-slate-400 text-xs cursor-pointer select-none font-medium">Ingat saya di perangkat ini</label>
+                                </div>
+                            </div>
+
+                            {error && (
+                                <div className="p-3 bg-red-950/50 border border-red-500/30 rounded-xl text-rose-400 text-xs leading-relaxed font-medium">
+                                    ⚠️ {error}
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full py-3 bg-cf-brand hover:bg-cf-brandHover text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-orange-500/10 disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {loading ? (
+                                    <>
+                                        <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Memverifikasi Keamanan...
+                                    </>
+                                ) : "Masuk Dasbor Keamanan"}
+                            </button>
+                        </form>
+
+                        {/* DIAGNOSIS SYSTEM */}
+                        <div className="mt-8 pt-6 border-t border-gray-800/80 text-center">
+                            <p className="text-slate-500 text-[11px] leading-relaxed mb-3">Mengalami kendala koneksi atau galat otentikasi?</p>
+                            <button
+                                onClick={runDiagnostic}
+                                disabled={diagnosing}
+                                className="px-4 py-2 text-[11px] font-bold bg-slate-950 hover:bg-slate-900 text-slate-400 border border-gray-800 rounded-lg transition-all"
+                            >
+                                {diagnosing ? "Mendiagnosis..." : "Jalankan Tes Diagnosis Jaringan"}
+                            </button>
+
+                            {diagnosticResult && (
+                                <div className={`mt-4 p-3 rounded-xl text-xs text-left border ${
+                                    diagnosticResult.status === "SUCCESS" ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-400" :
+                                    diagnosticResult.status === "WARNING" ? "bg-amber-950/40 border-amber-500/30 text-amber-400" :
+                                    "bg-rose-950/40 border-rose-500/30 text-rose-400"
+                                }`}>
+                                    <div className="font-bold mb-1">Hasil Analisis:</div>
+                                    <div className="leading-relaxed">{diagnosticResult.message}</div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        <input 
-                            type="password"
-                            value={appPassword}
-                            onChange={(e) => setAppPassword(e.target.value)}
-                            placeholder="Sandi Aplikasi"
-                            className="w-full p-3 bg-slate-950 border border-slate-700 rounded-xl text-white focus:border-cf-brand outline-none"
-                        />
-                        {error && <p className="text-rose-400 text-xs">{error}</p>}
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full py-3 bg-cf-brand hover:bg-cf-brandHover text-white font-bold rounded-xl transition-all"
-                        >
-                            {loading ? "Memproses..." : "Masuk Dasbor"}
-                        </button>
-                    </form>
+                );
+            }
+
+            // =========================================================================
+            // RENDERING HALAMAN UTAMA / DASHBOARD (Hierarchy, Muted Colors, Aesthetics)
+            // =========================================================================
+            return (
+                <div className="w-full max-w-6xl mx-auto space-y-6 py-6 px-4">
+                    {/* Header */}
+                    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 bg-gray-900 border border-gray-800 rounded-2xl gap-4 shadow-xl">
+                        <div className="flex items-center gap-3.5">
+                            <span className="text-4xl filter drop-shadow-sm">⚡</span>
+                            <div>
+                                <h1 className="text-xl font-extrabold text-white tracking-tight">Subdomain Creator Pro</h1>
+                                <p className="text-slate-400 text-xs mt-1">Google Apps Script Secure Bridge & Cloudflare API</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <button 
+                                onClick={fetchDnsRecords}
+                                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border border-slate-700/50"
+                                title="Segarkan Data"
+                            >
+                                🔄 Segarkan
+                            </button>
+                            <button 
+                                onClick={handleLogout}
+                                className="p-2.5 bg-rose-950/20 hover:bg-rose-950/40 text-rose-400 border border-rose-900/30 rounded-xl text-xs font-semibold transition-all"
+                            >
+                                Keluar Aplikasi 🚪
+                            </button>
+                        </div>
+                    </header>
+
+                    {/* Layout Utama 2 Kolom */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        {/* Kolom Kiri: Form & Kredensial */}
+                        <div className="space-y-6">
+                            {/* Panel Kredensial */}
+                            <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+                                <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                                    🔑 Kredensial Cloudflare
+                                </h2>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-1.5">Cloudflare API Token</label>
+                                        <input 
+                                            type="password"
+                                            value={apiToken}
+                                            onChange={(e) => setApiToken(e.target.value)}
+                                            placeholder="Bearer Token Cloudflare"
+                                            className="w-full p-2.5 bg-slate-950 border border-gray-800 rounded-lg text-xs outline-none text-slate-300 placeholder-slate-700 focus:border-cf-brand"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-1.5">Zone ID Domain</label>
+                                        <input 
+                                            type="text"
+                                            value={zoneId}
+                                            onChange={(e) => setZoneId(e.target.value)}
+                                            placeholder="Zone ID Cloudflare"
+                                            className="w-full p-2.5 bg-slate-950 border border-gray-800 rounded-lg text-xs outline-none text-slate-300 placeholder-slate-700 focus:border-cf-brand"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={() => saveCredentials(apiToken, zoneId)}
+                                        className="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-bold rounded-lg transition-all border border-slate-700/50"
+                                    >
+                                        Simpan Kredensial Lokal
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Form Tambah Record */}
+                            {}
+                            <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+                                <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                                    🌐 Buat Subdomain Baru
+                                </h2>
+                                <form onSubmit={handleCreateSubdomain} className="space-y-4">
+                                    <div>
+                                        <label className="block text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-1.5">Tipe Record</label>
+                                        <select 
+                                            value={dnsType} 
+                                            onChange={(e) => setDnsType(e.target.value)}
+                                            className="w-full p-2.5 bg-slate-950 border border-gray-800 rounded-lg text-xs font-semibold text-slate-300 focus:border-cf-brand outline-none"
+                                        >
+                                            <option value="A">A (IPv4 Address)</option>
+                                            <option value="AAAA">AAAA (IPv6 Address)</option>
+                                            <option value="CNAME">CNAME (Alias)</option>
+                                            <option value="TXT">TXT (Text)</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-1.5">Nama Subdomain</label>
+                                        <div className="flex items-center bg-slate-950 border border-gray-800 rounded-lg overflow-hidden focus-within:border-cf-brand">
+                                            <input 
+                                                type="text" 
+                                                value={subdomainName}
+                                                onChange={(e) => setSubdomainName(e.target.value)}
+                                                placeholder="contoh: blog, api, panel"
+                                                className="w-full p-2.5 bg-transparent text-xs text-slate-300 placeholder-slate-700 outline-none font-medium"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-1.5">Target Isi / Konten</label>
+                                        <input 
+                                            type="text" 
+                                            value={targetContent}
+                                            onChange={(e) => setTargetContent(e.target.value)}
+                                            placeholder={dnsType === "CNAME" ? "contoh.github.io" : "contoh: 192.168.1.1"}
+                                            className="w-full p-2.5 bg-slate-950 border border-gray-800 rounded-lg text-xs text-slate-300 placeholder-slate-700 focus:border-cf-brand outline-none"
+                                        />
+                                    </div>
+
+                                    {/* Proxy Cloudflare & TTL */}
+                                    <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-gray-800/80">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xl filter drop-shadow">☁️</span>
+                                            <div>
+                                                <div className="text-[11px] font-bold text-slate-300">Cloudflare Proxy</div>
+                                                <div className="text-[9px] text-slate-500 font-medium">Lewatkan trafik via Cloudflare</div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            disabled={dnsType === "TXT"}
+                                            onClick={() => setIsProxied(!isProxied)}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-extrabold tracking-wide uppercase transition-all ${
+                                                dnsType === "TXT" ? "bg-slate-900 text-slate-700 cursor-not-allowed" :
+                                                isProxied ? "bg-orange-500/10 text-orange-400 border border-orange-500/25 shadow-sm" : "bg-slate-900 text-slate-400 border border-slate-800"
+                                            }`}
+                                        >
+                                            {dnsType === "TXT" ? "N/A" : isProxied ? "Proxied" : "DNS Only"}
+                                        </button>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-1.5">TTL (Time to Live)</label>
+                                        <select 
+                                            value={ttlValue} 
+                                            onChange={(e) => setTtlValue(e.target.value)}
+                                            className="w-full p-2 bg-slate-950 border border-gray-800 rounded-lg text-xs text-slate-400 focus:border-cf-brand outline-none font-medium"
+                                        >
+                                            <option value="1">Auto</option>
+                                            <option value="60">1 Menit</option>
+                                            <option value="300">5 Menit</option>
+                                            <option value="3600">1 Jam</option>
+                                        </select>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={recordsLoading}
+                                        className="w-full py-3 bg-cf-brand hover:bg-cf-brandHover text-white text-xs font-extrabold uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-orange-500/10 flex items-center justify-center gap-2"
+                                    >
+                                        {recordsLoading ? "Sedang Memproses..." : "Buat Subdomain Sekarang"}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        {/* Kolom Kanan: Tabel Subdomain yang Ada (Optimasi Desain Tipografi) */}
+                        {}
+                        <div className="lg:col-span-2 bg-gray-900 rounded-2xl border border-gray-800 p-6 flex flex-col justify-between shadow-xl">
+                            <div>
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                                        📊 Daftar Subdomain Cloudflare
+                                    </h2>
+                                    {/* Filter Controls */}
+                                    <div className="flex gap-2.5 w-full sm:w-auto">
+                                        <input 
+                                            type="text" 
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder="Cari domain..."
+                                            className="p-2 bg-slate-950 border border-gray-800 rounded-lg text-xs text-slate-300 placeholder-slate-700 outline-none focus:border-cf-brand w-full sm:w-48 font-medium"
+                                        />
+                                        <select 
+                                            value={filterType} 
+                                            onChange={(e) => setFilterType(e.target.value)}
+                                            className="p-2 bg-slate-950 border border-gray-800 rounded-lg text-xs text-slate-400 font-semibold outline-none"
+                                        >
+                                            <option value="ALL">Semua</option>
+                                            <option value="A">A</option>
+                                            <option value="AAAA">AAAA</option>
+                                            <option value="CNAME">CNAME</option>
+                                            <option value="TXT">TXT</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {recordsError && (
+                                    <div className="p-4 bg-rose-950/20 border border-rose-900/30 rounded-xl text-rose-400 text-xs mb-4">
+                                        ⚠️ {recordsError}
+                                    </div>
+                                )}
+
+                                {recordsLoading && records.length === 0 ? (
+                                    <div className="text-center py-16">
+                                        <svg className="animate-spin h-8 w-8 text-cf-brand mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <p className="text-slate-400 text-xs font-semibold">Menghubungkan ke Cloudflare via Google Apps Script...</p>
+                                    </div>
+                                ) : filteredRecords.length === 0 ? (
+                                    <div className="text-center py-16 border border-dashed border-slate-800 rounded-xl">
+                                        <span className="text-3xl block mb-2">📭</span>
+                                        <p className="text-slate-400 text-xs font-semibold">Tidak ada record DNS yang ditemukan.</p>
+                                        <p className="text-slate-500 text-[10px] mt-1.5 leading-relaxed">Gunakan form di samping kiri untuk membuat subdomain baru.</p>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto rounded-xl border border-gray-800/80 bg-slate-950">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-900/60 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-gray-850">
+                                                    <th className="p-3.5">Tipe</th>
+                                                    <th className="p-3.5">Nama Domain</th>
+                                                    <th className="p-3.5">Konten Target</th>
+                                                    <th className="p-3.5">Proxy</th>
+                                                    <th className="p-3.5 text-center">Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-900 text-xs">
+                                                {filteredRecords.map((rec) => (
+                                                    <tr key={rec.id} className="hover:bg-slate-900/30 transition-all text-slate-300">
+                                                        <td className="p-3.5">
+                                                            <span className="px-2 py-1 bg-slate-900 border border-slate-800 text-[10px] font-extrabold rounded text-slate-300 tracking-wide">
+                                                                {rec.type}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3.5 font-bold text-white break-all">{rec.name}</td>
+                                                        <td className="p-3.5 font-mono text-slate-400 break-all">{rec.content}</td>
+                                                        <td className="p-3.5">
+                                                            {rec.proxied ? (
+                                                                <span className="text-orange-400 flex items-center gap-1 font-bold text-[10px] uppercase tracking-wider" title="Trafik dilewatkan Cloudflare">
+                                                                    ☁️ Proxied
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-slate-500 flex items-center gap-1 text-[10px] uppercase tracking-wider" title="Trafik langsung ke IP">
+                                                                    ◽ DNS Only
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-3.5 text-center">
+                                                            <button
+                                                                onClick={() => handleDeleteRecord(rec.id, rec.name)}
+                                                                disabled={recordsLoading}
+                                                                className="px-2.5 py-1.5 bg-rose-950/20 hover:bg-rose-950/40 text-rose-400 border border-rose-900/30 rounded-lg hover:border-rose-500 transition-all text-[11px] font-bold"
+                                                            >
+                                                                Hapus
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="mt-6 pt-4 border-t border-gray-800/80 flex flex-col sm:flex-row justify-between text-[11px] text-slate-500 font-medium gap-2">
+                                <div>Menampilkan {filteredRecords.length} dari total {records.length} record DNS</div>
+                                <div className="flex items-center gap-1.5">
+                                    Status Jembatan: 
+                                    <span className="text-emerald-400 font-extrabold flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                        Terhubung Secara Aman
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             );
         }
@@ -85,5 +695,19 @@
         const root = ReactDOM.createRoot(document.getElementById("root"));
         root.render(<App />);
     </script>
+
+    <!-- Footer -->
+    <footer class="py-6 text-center text-[11px] text-slate-500 border-t border-gray-900">
+        <p>&copy; 2026 Cloudflare Subdomain Manager. Secured by Google Apps Script Bridge.</p>
+    </footer>
 </body>
 </html>
+```
+eof
+
+### Apa yang Berubah di Desain Baru Ini?
+1. **Peningkatan Kontras Visual**: Menghilangkan warna putih mencolok dari deskripsi dan label input, menggantinya dengan warna abu-abu arang dan perak redup (`text-slate-400` / `text-slate-500`). Hasilnya, teks yang benar-benar penting seperti nama subdomain (`rec.name`) dan judul terlihat sangat menonjol.
+2. **Skema Warna Terfokus**: Membawa aksen warna oranye khas Cloudflare (`text-orange-400`), abu-abu netral, dan status aktif hijau neon (`text-emerald-400`) untuk memandu pandangan pengguna ke bagian-bagian interaktif yang penting tanpa membuat layar terasa penuh.
+3. **Lebih Profesional**: Antarmuka halaman masuk dan panel kontrol kini terasa jauh lebih rapi, modern, dan ramah terhadap mata, terutama di ruangan yang minim cahaya.
+
+Silakan ganti kode `index.html` Anda di repositori GitHub dengan kode lengkap di atas, lakukan *Hard Refresh* (`Ctrl + F5`), lalu lihat perbedaannya!
