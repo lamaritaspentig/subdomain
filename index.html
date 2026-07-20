@@ -40,15 +40,14 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
-        // 1. TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
+        // 1. TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT (GAS) ANDA DI SINI
         const CONFIG_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIVztg9DEorq9cVW3UOePGYxNPykgbBjewh72U3udyMW_9PKxhU0ceqQTXKRskwmWxmQ/exec";
         
         // 2. UBAH KATA SANDI LOGIN ADMIN ANDA DI SINI (Default: admin123)
-        const CONFIG_ADMIN_PASSWORD = "admin12345";
+        const CONFIG_ADMIN_PASSWORD = "Admin12345";
         
         const { useState, useEffect } = React;
 
-        // Komponen Toast Notification untuk pesan melayang yang interaktif
         function Toast({ message, type, onClose }) {
             useEffect(() => {
                 const timer = setTimeout(onClose, 5000);
@@ -62,7 +61,7 @@
                 <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl border transition-all transform duration-300 translate-y-0 scale-100 ${
                     isSuccess ? 'bg-emerald-950/90 border-emerald-500/30 text-emerald-300' :
                     isError ? 'bg-rose-950/90 border-rose-500/30 text-rose-300' :
-                    'bg-slate-900/90 border-slate-700 text-slate-300'
+                    'bg-slate-900/90 border-slate-750 text-slate-300'
                 }`}>
                     {isSuccess && (
                         <svg className="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,8 +73,8 @@
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                     )}
-                    <span className="text-sm font-medium">{message}</span>
-                    <button onClick={onClose} className="hover:text-white ml-2">
+                    <span className="text-sm font-medium text-slate-200">{message}</span>
+                    <button onClick={onClose} className="hover:text-white ml-2 text-slate-400">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -97,11 +96,6 @@
             const [btnLoading, setBtnLoading] = useState(false);
             const [searchQuery, setSearchQuery] = useState("");
             const [toast, setToast] = useState(null);
-            
-            // State Kredensial Cloudflare
-            const [cfToken, setCfToken] = useState("");
-            const [cfZone, setCfZone] = useState("");
-            const [isCredentialsSaved, setIsCredentialsSaved] = useState(false);
 
             // State Form Pembuatan Subdomain
             const [subdomain, setSubdomain] = useState("");
@@ -119,30 +113,20 @@
                 setToast({ message, type });
             };
 
-            // Memeriksa status login dan kredensial saat aplikasi dibuka
+            // Memeriksa status login saat aplikasi dibuka
             useEffect(() => {
-                // Periksa sesi aktif di sessionStorage agar tidak perlu re-login terus menerus selama browser terbuka
                 const sessionStatus = sessionStorage.getItem("admin_session_active");
                 if (sessionStatus === "true") {
                     setIsLoggedIn(true);
                 }
-
-                const storedToken = localStorage.getItem("cf_api_token") || "";
-                const storedZone = localStorage.getItem("cf_zone_id") || "";
-                setCfToken(storedToken);
-                setCfZone(storedZone);
-                
-                if (storedToken && storedZone) {
-                    setIsCredentialsSaved(true);
-                }
             }, []);
 
-            // Memuat ulang data secara otomatis ketika kredensial terverifikasi aktif
+            // Memuat data secara otomatis ketika login berhasil
             useEffect(() => {
-                if (isLoggedIn && isCredentialsSaved && cfToken && cfZone) {
+                if (isLoggedIn) {
                     fetchRecords();
                 }
-            }, [isLoggedIn, isCredentialsSaved]);
+            }, [isLoggedIn]);
 
             const handleLoginSubmit = (e) => {
                 e.preventDefault();
@@ -150,10 +134,10 @@
                     setIsLoggedIn(true);
                     setLoginError("");
                     sessionStorage.setItem("admin_session_active", "true");
-                    showToast("Login berhasil! Selamat datang di dasbor aman.", "success");
+                    showToast("Login berhasil! Selamat datang kembali.", "success");
                 } else {
-                    setLoginError("Kata sandi yang Anda masukkan salah!");
-                    showToast("Login gagal, periksa kembali sandi Anda.", "error");
+                    setLoginError("Kata sandi salah!");
+                    showToast("Login gagal, periksa sandi Anda.", "error");
                 }
             };
 
@@ -161,47 +145,17 @@
                 setIsLoggedIn(false);
                 setInputPassword("");
                 sessionStorage.removeItem("admin_session_active");
-                showToast("Anda telah keluar dari dasbor dengan aman.", "info");
-            };
-
-            const handleSaveCredentials = (e) => {
-                e.preventDefault();
-                if (!cfToken.trim() || !cfZone.trim()) {
-                    showToast("Harap isi kedua kolom kredensial Cloudflare!", "error");
-                    return;
-                }
-                localStorage.setItem("cf_api_token", cfToken.trim());
-                localStorage.setItem("cf_zone_id", cfZone.trim());
-                setIsCredentialsSaved(true);
-                showToast("Kredensial disimpan dengan aman di sistem lokal browser Anda!", "success");
-            };
-
-            const handleClearCredentials = () => {
-                localStorage.removeItem("cf_api_token");
-                localStorage.removeItem("cf_zone_id");
-                setCfToken("");
-                setCfZone("");
-                setIsCredentialsSaved(false);
-                setRecords([]);
-                showToast("Kredensial dihapus. Silakan hubungkan kembali.", "info");
+                showToast("Anda telah keluar dengan aman.", "info");
             };
 
             const fetchRecords = async () => {
-                if (!cfToken || !cfZone) {
-                    showToast("Kredensial Cloudflare belum dikonfigurasi!", "error");
-                    return;
-                }
                 setLoading(true);
                 try {
                     const response = await fetch(CONFIG_APPS_SCRIPT_URL, {
                         method: "POST",
                         mode: "cors",
                         headers: { "Content-Type": "text/plain" },
-                        body: JSON.stringify({ 
-                            action: "list",
-                            apiToken: cfToken,
-                            zoneId: cfZone
-                        })
+                        body: JSON.stringify({ action: "list" })
                     });
                     
                     const data = await response.json();
@@ -216,7 +170,7 @@
                         showToast(errMsg, "error");
                     }
                 } catch (e) {
-                    showToast("Koneksi Apps Script terputus atau URL salah!", "error");
+                    showToast("Gagal terhubung ke Google Apps Script!", "error");
                     console.error(e);
                 } finally {
                     setLoading(false);
@@ -225,12 +179,8 @@
 
             const handleCreateRecord = async (e) => {
                 e.preventDefault();
-                if (!isCredentialsSaved) {
-                    showToast("Simpan Kredensial Cloudflare Anda terlebih dahulu!", "error");
-                    return;
-                }
                 if (!subdomain || !domainUtama || !targetValue) {
-                    showToast("Harap lengkapi semua isian formulir!", "error");
+                    showToast("Harap lengkapi seluruh kolom formulir!", "error");
                     return;
                 }
 
@@ -252,15 +202,13 @@
                         headers: { "Content-Type": "text/plain" },
                         body: JSON.stringify({
                             action: "create",
-                            apiToken: cfToken,
-                            zoneId: cfZone,
                             recordData: recordData
                         })
                     });
 
                     const data = await response.json();
                     if (data.success) {
-                        showToast(`Sukses! Subdomain ${fullDomainName} berhasil diaktifkan.`, "success");
+                        showToast(`Sukses! Subdomain ${fullDomainName} berhasil dibuat.`, "success");
                         setSubdomain("");
                         setTargetValue("");
                         fetchRecords();
@@ -286,8 +234,6 @@
                         headers: { "Content-Type": "text/plain" },
                         body: JSON.stringify({
                             action: "delete",
-                            apiToken: cfToken,
-                            zoneId: cfZone,
                             recordId: recordId
                         })
                     });
@@ -308,20 +254,29 @@
                 }
             };
 
+            const handleCopyToClipboard = (text) => {
+                const tempInput = document.createElement("input");
+                tempInput.value = text;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand("copy");
+                document.body.removeChild(tempInput);
+                showToast(`Teks "${text}" disalin ke clipboard!`, "success");
+            };
+
             const filteredRecords = records.filter(rec => 
                 rec.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 rec.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 rec.type.toLowerCase().includes(searchQuery.toLowerCase())
             );
 
-            // JIKA BELUM LOGIN: Render Halaman Gerbang Masuk (Login Screen)
             if (!isLoggedIn) {
                 return (
                     <div className="min-h-screen flex items-center justify-center p-4 bg-[#070b13]">
                         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-orange-600/5 to-transparent pointer-events-none"></div>
                         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-orange-600/5 rounded-full blur-[120px] pointer-events-none"></div>
                         
-                        <div className="max-w-md w-full bg-[#0f172a] border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden transition-all duration-300">
+                        <div className="max-w-md w-full bg-[#0f172a] border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
                             <div className="text-center mb-8 relative">
                                 <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-xl shadow-orange-500/20">
                                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -329,11 +284,11 @@
                                     </svg>
                                 </div>
                                 <h1 className="text-xl font-bold text-white tracking-wide">CF DNS Manager</h1>
-                                <p className="text-xs text-slate-500 mt-1.5 font-medium">Konsol Keamanan Akses Terbatas</p>
+                                <p className="text-xs text-slate-450 mt-1.5 font-medium">Konsol Keamanan Akses Terbatas</p>
                             </div>
 
                             {loginError && (
-                                <div className="mb-5 p-3.5 bg-rose-950/40 border border-rose-500/20 rounded-xl text-xs text-rose-400 font-medium flex items-center gap-2">
+                                <div className="mb-5 p-3.5 bg-rose-950/40 border border-rose-500/20 rounded-xl text-xs text-rose-450 font-medium flex items-center gap-2">
                                     <svg className="w-4 h-4 shrink-0 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                     </svg>
@@ -360,7 +315,7 @@
                                         >
                                             {showPassword ? (
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268-2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                                                 </svg>
                                             ) : (
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -381,9 +336,9 @@
                             </form>
 
                             <div className="mt-6 text-center border-t border-slate-800/60 pt-5">
-                                <span className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider block mb-1">Panduan Kata Sandi</span>
+                                <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block mb-1">Keamanan Sistem</span>
                                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                                    Sandi default aplikasi Anda saat ini adalah <code className="bg-slate-950 px-1.5 py-0.5 rounded text-orange-400 font-bold font-mono">admin123</code>.
+                                    Masukkan kata sandi admin Anda untuk mengaktifkan seluruh konsol subdomain Anda.
                                 </p>
                             </div>
                         </div>
@@ -414,7 +369,7 @@
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                     </span>
-                                    {isCredentialsSaved ? "Koneksi Terhubung" : "Menunggu Kredensial"}
+                                    Koneksi Aktif
                                 </div>
 
                                 <button 
@@ -434,77 +389,16 @@
                     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                             
-                            {/* Panel Kiri */}
-                            <div className="lg:col-span-5 space-y-6">
-                                
-                                {/* CARD 1: Konfigurasi Kredensial */}
+                            {/* Panel Kiri: Form Pembuatan Subdomain */}
+                            <div className="lg:col-span-5">
                                 <section className="bg-slate-900 border border-slate-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-16 h-16 bg-blue-600/5 rounded-full blur-xl"></div>
-                                    <h2 className="text-base font-bold text-white mb-1 flex items-center gap-2">
-                                        <span className="w-1 h-4 bg-blue-500 rounded"></span>
-                                        🔑 Kredensial Cloudflare
-                                    </h2>
-                                    <p className="text-xs text-slate-500 mb-4">Disimpan terenkripsi di penyimpanan browser Anda sendiri.</p>
-
-                                    {isCredentialsSaved ? (
-                                        <div className="p-4 bg-emerald-950/20 border border-emerald-500/20 rounded-xl space-y-3">
-                                            <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold">
-                                                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                                </svg>
-                                                Kredensial Aktif & Siap Beroperasi
-                                            </div>
-                                            <p className="text-[11px] text-slate-400 truncate"><strong>Zone ID:</strong> {cfZone}</p>
-                                            <button 
-                                                onClick={handleClearCredentials}
-                                                className="w-full bg-slate-800 hover:bg-slate-700/80 text-xs text-slate-300 font-bold py-2 px-3 rounded-lg border border-slate-700/50 transition-colors"
-                                            >
-                                                Lepas Kredensial
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <form onSubmit={handleSaveCredentials} className="space-y-4">
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-400 mb-1.5">Cloudflare API Token</label>
-                                                <input 
-                                                    type="password" 
-                                                    required
-                                                    placeholder="Tempel API Token Cloudflare Anda"
-                                                    value={cfToken}
-                                                    onChange={(e) => setCfToken(e.target.value)}
-                                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 placeholder:text-slate-600 transition-colors"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-400 mb-1.5">Cloudflare Zone ID</label>
-                                                <input 
-                                                    type="text" 
-                                                    required
-                                                    placeholder="Tempel Zone ID Domain Anda"
-                                                    value={cfZone}
-                                                    onChange={(e) => setCfZone(e.target.value)}
-                                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 placeholder:text-slate-600 transition-colors"
-                                                />
-                                            </div>
-                                            <button 
-                                                type="submit"
-                                                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-lg shadow-blue-500/10 transition-colors"
-                                            >
-                                                Hubungkan & Simpan Kredensial
-                                            </button>
-                                        </form>
-                                    )}
-                                </section>
-
-                                {/* CARD 2: Form Buat Subdomain */}
-                                <section className={`bg-slate-900 border border-slate-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden transition-all ${!isCredentialsSaved ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
                                     <div className="absolute top-0 right-0 w-24 h-24 bg-orange-600/5 rounded-full blur-2xl"></div>
                                     
                                     <h2 className="text-base font-bold text-white mb-1 flex items-center gap-2">
                                         <span className="w-1 h-4 bg-orange-500 rounded"></span>
                                         Buat Subdomain Baru
                                     </h2>
-                                    <p className="text-xs text-slate-500 mb-6">Tambahkan record DNS A, CNAME, atau AAAA dengan cepat.</p>
+                                    <p className="text-xs text-slate-400 mb-6">Tambahkan record DNS A, CNAME, atau AAAA dengan cepat.</p>
 
                                     <form onSubmit={handleCreateRecord} className="space-y-4">
                                         <div>
@@ -542,7 +436,7 @@
                                                 <select 
                                                     value={recordType}
                                                     onChange={(e) => setRecordType(e.target.value)}
-                                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors cursor-pointer"
+                                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-350 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors cursor-pointer"
                                                 >
                                                     <option value="A">A (IPv4)</option>
                                                     <option value="CNAME">CNAME (Alias)</option>
@@ -555,7 +449,7 @@
                                                 <select 
                                                     value={ttl}
                                                     onChange={(e) => setTtl(e.target.value)}
-                                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors cursor-pointer"
+                                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-350 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors cursor-pointer"
                                                 >
                                                     <option value="1">Automatic</option>
                                                     <option value="60">1 Menit</option>
@@ -618,7 +512,7 @@
                                 </section>
                             </div>
 
-                            {/* Panel Kanan: Daftar Record */}
+                            {/* Panel Kanan: Daftar Record Active */}
                             <section className="lg:col-span-7 bg-slate-900 border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col min-h-[450px]">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                                     <div>
@@ -626,7 +520,7 @@
                                             <span className="w-1 h-4 bg-orange-500 rounded"></span>
                                             Daftar Subdomain Aktif
                                         </h2>
-                                        <p className="text-xs text-slate-500">Menampilkan seluruh data record DNS yang terhubung.</p>
+                                        <p className="text-xs text-slate-400">Menampilkan seluruh data record DNS yang terhubung.</p>
                                     </div>
                                     
                                     <div className="relative">
@@ -637,27 +531,19 @@
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             className="w-full sm:w-60 bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors placeholder:text-slate-600"
                                         />
-                                        <svg className="w-4 h-4 text-slate-600 absolute left-3 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-4 h-4 text-slate-650 absolute left-3 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                         </svg>
                                     </div>
                                 </div>
 
-                                {!isCredentialsSaved ? (
-                                    <div className="flex-grow flex flex-col items-center justify-center text-center py-12 border-2 border-dashed border-slate-800 rounded-xl p-8 bg-slate-950/20">
-                                        <svg className="w-10 h-10 text-slate-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                        </svg>
-                                        <p className="text-sm font-semibold text-slate-400">Kredensial Belum Terisi</p>
-                                        <p className="text-xs text-slate-600 mt-1 max-w-xs">Silakan hubungkan API Token & Zone ID Cloudflare Anda pada panel kiri terlebih dahulu.</p>
-                                    </div>
-                                ) : loading ? (
+                                {loading ? (
                                     <div className="flex-grow flex flex-col items-center justify-center gap-3 py-12">
                                         <svg className="animate-spin h-8 w-8 text-orange-500" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                         </svg>
-                                        <p className="text-xs text-slate-500">Membaca basis data Cloudflare...</p>
+                                        <p className="text-xs text-slate-450">Membaca basis data Cloudflare...</p>
                                     </div>
                                 ) : filteredRecords.length === 0 ? (
                                     <div className="flex-grow flex flex-col items-center justify-center text-center py-12 border-2 border-dashed border-slate-800 rounded-xl p-8 bg-slate-950/20">
@@ -665,7 +551,7 @@
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                                         </svg>
                                         <p className="text-sm font-semibold text-slate-400">Tidak ada subdomain ditemukan</p>
-                                        <p className="text-xs text-slate-600 mt-1 max-w-xs">Periksa kembali kredensial Anda, atau buat subdomain baru di sebelah kiri.</p>
+                                        <p className="text-xs text-slate-500 mt-1 max-w-xs">Periksa kembali konfigurasi domain utama atau buat subdomain baru di sebelah kiri.</p>
                                         <button 
                                             onClick={fetchRecords} 
                                             className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-semibold border border-slate-700/65 rounded-lg transition-colors"
@@ -689,7 +575,18 @@
                                                 {filteredRecords.map((rec) => (
                                                     <tr key={rec.id} className="hover:bg-slate-900/30 transition-colors">
                                                         <td className="py-3.5 px-4 font-bold text-slate-200">
-                                                            {rec.name}
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="truncate max-w-[140px] sm:max-w-none">{rec.name}</span>
+                                                                <button 
+                                                                    onClick={() => handleCopyToClipboard(rec.name)}
+                                                                    className="p-1 text-slate-500 hover:text-orange-400 rounded transition-colors"
+                                                                    title="Salin Subdomain"
+                                                                >
+                                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m-5 4h6m-6 4h6m-6 4h6" />
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                         <td className="py-3.5 px-3">
                                                             <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold ${
@@ -700,7 +597,7 @@
                                                                 {rec.type}
                                                             </span>
                                                         </td>
-                                                        <td className="py-3.5 px-3 text-slate-400 max-w-[160px] truncate" title={rec.content}>
+                                                        <td className="py-3.5 px-3 text-slate-450 max-w-[140px] truncate" title={rec.content}>
                                                             {rec.content}
                                                         </td>
                                                         <td className="py-3.5 px-3">
@@ -739,17 +636,15 @@
 
                                 <div className="mt-auto pt-4 flex justify-between items-center text-[11px] text-slate-600">
                                     <span>Menampilkan {filteredRecords.length} dari {records.length} total record</span>
-                                    {isCredentialsSaved && (
-                                        <button 
-                                            onClick={fetchRecords} 
-                                            className="hover:text-slate-300 flex items-center gap-1 transition-colors"
-                                        >
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 4.79M9 9h1.5m1.5 0H12v-.5V6m0 3v3h.5m-3-3h3" />
-                                            </svg>
-                                            Perbarui Tampilan
-                                        </button>
-                                    )}
+                                    <button 
+                                        onClick={fetchRecords} 
+                                        className="hover:text-slate-350 flex items-center gap-1 transition-colors"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 4.79M9 9h1.5m1.5 0H12v-.5V6m0 3v3h.5m-3-3h3" />
+                                        </svg>
+                                        Perbarui Tampilan
+                                    </button>
                                 </div>
                             </section>
 
