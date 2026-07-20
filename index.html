@@ -3,600 +3,482 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloudflare Subdomain Manager</title>
-    <!-- Tailwind CSS untuk Styling Premium -->
+    <title>Cloudflare Subdomain Manager - Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        cf: {
-                            brand: '#f38020',
-                            brandHover: '#e06f10',
-                            darkBg: '#090d16',
-                            panelBg: '#111827',
-                            border: '#1f2937'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- Font Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #090d16;
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #0b111e; 
+            color: #94a3b8; 
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
         }
     </style>
 </head>
-<body class="min-h-screen text-slate-400 flex flex-col justify-between">
+<body class="min-h-screen selection:bg-orange-500/30 selection:text-orange-200">
+    <!-- Kontainer React Root -->
+    <div id="root"></div>
 
-    <!-- Container Utama React -->
-    <div id="root" class="flex-grow flex items-center justify-center p-4"></div>
-
-    <!-- React 18 & Babel CDN -->
+    <!-- Pustaka Inti React 18 & Babel Compiler -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Script Utama React -->
     <script type="text/babel">
-        // =========================================================================
-        // ⚡ KONFIGURASI JEMBATAN PROXY ⚡
-        // =========================================================================
+        // TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
         const CONFIG_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIVztg9DEorq9cVW3UOePGYxNPykgbBjewh72U3udyMW_9PKxhU0ceqQTXKRskwmWxmQ/exec";
         
         const { useState, useEffect } = React;
 
+        function Toast({ message, type, onClose }) {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 5000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+
+            const isSuccess = type === 'success';
+            const isError = type === 'error';
+
+            return (
+                <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl border transition-all transform duration-300 translate-y-0 scale-100 ${
+                    isSuccess ? 'bg-emerald-950/90 border-emerald-500/30 text-emerald-300' :
+                    isError ? 'bg-rose-950/90 border-rose-500/30 text-rose-300' :
+                    'bg-slate-900/90 border-slate-700 text-slate-300'
+                }`}>
+                    {isSuccess && (
+                        <svg className="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    )}
+                    {isError && (
+                        <svg className="w-5 h-5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    )}
+                    <span className="text-sm font-medium">{message}</span>
+                    <button onClick={onClose} className="hover:text-white ml-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            );
+        }
+
         function App() {
-            const [isLoggedIn, setIsLoggedIn] = useState(false);
-            const [appPassword, setAppPassword] = useState("");
-            const [loading, setLoading] = useState(false);
-            const [error, setError] = useState("");
-            const [rememberMe, setRememberMe] = useState(true);
-
-            // State Data Cloudflare (Kredensial diambil langsung oleh Apps Script)
             const [records, setRecords] = useState([]);
-            const [recordsLoading, setRecordsLoading] = useState(false);
-            const [recordsError, setRecordsError] = useState("");
-            
-            // State Form Pembuatan Record
-            const [dnsType, setDnsType] = useState("A");
-            const [subdomainName, setSubdomainName] = useState("");
-            const [targetContent, setTargetContent] = useState("");
-            const [isProxied, setIsProxied] = useState(true);
-            const [ttlValue, setTtlValue] = useState(1); // 1 = Auto
-
-            // State Filter & Pencarian
+            const [loading, setLoading] = useState(false);
+            const [btnLoading, setBtnLoading] = useState(false);
             const [searchQuery, setSearchQuery] = useState("");
-            const [filterType, setFilterType] = useState("ALL");
+            const [toast, setToast] = useState(null);
+            
+            // State untuk Form Pembuatan Subdomain
+            const [subdomain, setSubdomain] = useState("");
+            const [domainUtama, setDomainUtama] = useState("");
+            const [recordType, setRecordType] = useState("A");
+            const [targetValue, setTargetValue] = useState("");
+            const [proxied, setProxied] = useState(true);
+            const [ttl, setTtl] = useState(1); // 1 = Auto
 
-            // State UI Kustom (Pengganti Alert & Confirm bawaan browser)
-            const [toast, setToast] = useState({ show: false, message: "", type: "info" });
-            const [confirmModal, setConfirmModal] = useState({ show: false, recordId: null, recordName: "" });
+            // State untuk dialog konfirmasi hapus custom
+            const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+            const [confirmDeleteName, setConfirmDeleteName] = useState("");
 
-            useEffect(() => {
-                const savedLogin = localStorage.getItem("cf_logged_in");
-                const savedPassword = localStorage.getItem("cf_saved_password");
-
-                if (savedPassword) {
-                    setAppPassword(savedPassword);
-                }
-                if (savedLogin === "true" && savedPassword) {
-                    setIsLoggedIn(true);
-                }
-            }, []);
-
-            useEffect(() => {
-                if (isLoggedIn) {
-                    fetchDnsRecords();
-                }
-            }, [isLoggedIn]);
-
-            // Helper pemicu notifikasi Toast kustom
-            const showToast = (message, type = "success") => {
-                setToast({ show: true, message, type });
-                setTimeout(() => {
-                    setToast({ show: false, message: "", type: "info" });
-                }, 4000);
+            const showToast = (message, type = 'info') => {
+                setToast({ message, type });
             };
 
-            const handleLogin = async (e) => {
-                e.preventDefault();
+            const fetchRecords = async () => {
                 setLoading(true);
-                setError("");
-
-                if (!appPassword.trim()) {
-                    setError("Silakan masukkan Sandi Aplikasi terlebih dahulu.");
-                    setLoading(false);
-                    return;
-                }
-
                 try {
                     const response = await fetch(CONFIG_APPS_SCRIPT_URL, {
                         method: "POST",
                         mode: "cors",
-                        credentials: "omit",
-                        redirect: "follow",
                         headers: { "Content-Type": "text/plain" },
-                        body: JSON.stringify({
-                            action: "verifyLogin",
-                            appPassword: appPassword.trim()
-                        })
+                        body: JSON.stringify({ action: "list" })
                     });
-
-                    const text = await response.text();
-                    let data;
-                    try {
-                        data = JSON.parse(text);
-                    } catch (e) {
-                        throw new Error("Gagal mengurai respon server. Periksa kembali deployment Google Apps Script Anda.");
-                    }
-
-                    if (data && data.success) {
-                        setIsLoggedIn(true);
-                        if (rememberMe) {
-                            localStorage.setItem("cf_logged_in", "true");
-                            localStorage.setItem("cf_saved_password", appPassword.trim());
-                        } else {
-                            localStorage.removeItem("cf_logged_in");
-                            localStorage.removeItem("cf_saved_password");
-                        }
-                        showToast("Berhasil masuk ke dasbor!");
-                    } else {
-                        setError(data && data.errors ? data.errors[0].message : "Sandi Aplikasi salah.");
-                    }
-                } catch (err) {
-                    setError(err.message || "Gagal terhubung ke Google Apps Script.");
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            const handleLogout = () => {
-                setIsLoggedIn(false);
-                localStorage.removeItem("cf_logged_in");
-                showToast("Anda telah keluar secara aman.", "info");
-            };
-
-            const fetchDnsRecords = async () => {
-                setRecordsLoading(true);
-                setRecordsError("");
-
-                try {
-                    const response = await fetch(CONFIG_APPS_SCRIPT_URL, {
-                        method: "POST",
-                        mode: "cors",
-                        credentials: "omit",
-                        redirect: "follow",
-                        headers: { "Content-Type": "text/plain" },
-                        body: JSON.stringify({
-                            action: "list",
-                            appPassword: appPassword.trim()
-                        })
-                    });
-
-                    const text = await response.text();
-                    const data = JSON.parse(text);
-
+                    
+                    const data = await response.json();
                     if (data.success) {
                         setRecords(data.result || []);
+                        // Dapatkan domain utama dari salah satu record yang ada untuk memudahkan pengisian form
+                        if (data.result && data.result.length > 0) {
+                            const sampleName = data.result[0].zone_name;
+                            if (sampleName) setDomainUtama(sampleName);
+                        }
                     } else {
-                        setRecordsError(data.errors && data.errors[0] ? data.errors[0].message : "Gagal memuat DNS.");
+                        const errMsg = data.errors?.[0]?.message || "Gagal memuat daftar subdomain.";
+                        showToast(errMsg, "error");
                     }
-                } catch (err) {
-                    setRecordsError("Gagal mengambil data dari Google Proxy: " + err.message);
+                } catch (e) {
+                    showToast("Koneksi gagal! Pastikan Apps Script Web App sudah di-deploy dengan hak akses 'Anyone'.", "error");
+                    console.error(e);
                 } finally {
-                    setRecordsLoading(false);
+                    setLoading(false);
                 }
             };
 
-            const handleCreateSubdomain = async (e) => {
+            useEffect(() => {
+                fetchRecords();
+            }, []);
+
+            const handleCreateRecord = async (e) => {
                 e.preventDefault();
-                if (!subdomainName || !targetContent) {
-                    showToast("Nama subdomain dan target wajib diisi!", "error");
+                if (!subdomain || !domainUtama || !targetValue) {
+                    showToast("Harap isi semua kolom formulir!", "error");
                     return;
                 }
-                
-                setRecordsLoading(true);
-                try {
-                    const recordData = {
-                        type: dnsType,
-                        name: subdomainName.trim(),
-                        content: targetContent.trim(),
-                        ttl: parseInt(ttlValue),
-                        proxied: dnsType === "A" || dnsType === "AAAA" || dnsType === "CNAME" ? isProxied : false
-                    };
 
+                setBtnLoading(true);
+                const fullDomainName = `${subdomain.trim().toLowerCase()}.${domainUtama.trim().toLowerCase()}`;
+                
+                const recordData = {
+                    type: recordType,
+                    name: fullDomainName,
+                    content: targetValue.trim(),
+                    ttl: parseInt(ttl),
+                    proxied: recordType === "CNAME" || recordType === "A" ? proxied : false
+                };
+
+                try {
                     const response = await fetch(CONFIG_APPS_SCRIPT_URL, {
                         method: "POST",
                         mode: "cors",
-                        credentials: "omit",
-                        redirect: "follow",
                         headers: { "Content-Type": "text/plain" },
                         body: JSON.stringify({
                             action: "create",
-                            appPassword: appPassword.trim(),
                             recordData: recordData
                         })
                     });
 
-                    const text = await response.text();
-                    const data = JSON.parse(text);
-
+                    const data = await response.json();
                     if (data.success) {
-                        setSubdomainName("");
-                        setTargetContent("");
-                        showToast(`Subdomain "${recordData.name}" berhasil dibuat!`);
-                        fetchDnsRecords();
+                        showToast(`Subdomain ${fullDomainName} sukses dibuat!`, "success");
+                        setSubdomain("");
+                        setTargetValue("");
+                        fetchRecords();
                     } else {
-                        showToast("Gagal: " + (data.errors && data.errors[0] ? data.errors[0].message : "Error"), "error");
-                        setRecordsLoading(false);
+                        const errMsg = data.errors?.[0]?.message || "Gagal membuat subdomain.";
+                        showToast(errMsg, "error");
                     }
                 } catch (err) {
-                    showToast("Koneksi gagal: " + err.message, "error");
-                    setRecordsLoading(false);
+                    showToast("Terjadi kesalahan koneksi saat membuat record.", "error");
+                    console.error(err);
+                } finally {
+                    setBtnLoading(false);
                 }
             };
 
-            const triggerDeleteConfirm = (id, name) => {
-                setConfirmModal({ show: true, recordId: id, recordName: name });
-            };
-
-            const executeDeleteRecord = async () => {
-                const recordId = confirmModal.recordId;
-                const recordName = confirmModal.recordName;
-                setConfirmModal({ show: false, recordId: null, recordName: "" });
-
-                setRecordsLoading(true);
+            const handleDeleteRecord = async (recordId) => {
+                setLoading(true);
+                setConfirmDeleteId(null); // Tutup dialog konfirmasi
                 try {
                     const response = await fetch(CONFIG_APPS_SCRIPT_URL, {
                         method: "POST",
                         mode: "cors",
-                        credentials: "omit",
-                        redirect: "follow",
                         headers: { "Content-Type": "text/plain" },
                         body: JSON.stringify({
                             action: "delete",
-                            appPassword: appPassword.trim(),
                             recordId: recordId
                         })
                     });
 
-                    const text = await response.text();
-                    const data = JSON.parse(text);
-
+                    const data = await response.json();
                     if (data.success) {
-                        showToast(`Subdomain "${recordName}" berhasil dihapus.`);
-                        fetchDnsRecords();
+                        showToast("Subdomain berhasil dihapus secara permanen.", "success");
+                        fetchRecords();
                     } else {
-                        showToast("Gagal menghapus: " + (data.errors && data.errors[0] ? data.errors[0].message : "Error"), "error");
-                        setRecordsLoading(false);
+                        const errMsg = data.errors?.[0]?.message || "Gagal menghapus subdomain.";
+                        showToast(errMsg, "error");
+                        setLoading(false);
                     }
                 } catch (err) {
-                    showToast("Koneksi gagal: " + err.message, "error");
-                    setRecordsLoading(false);
+                    showToast("Koneksi gagal saat menghapus record.", "error");
+                    console.error(err);
+                    setLoading(false);
                 }
             };
 
-            const filteredRecords = records.filter(rec => {
-                const matchesSearch = rec.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                      rec.content.toLowerCase().includes(searchQuery.toLowerCase());
-                const matchesType = filterType === "ALL" || rec.type === filterType;
-                return matchesSearch && matchesType;
-            });
-
-            if (!isLoggedIn) {
-                return (
-                    <div className="max-w-md w-full bg-gray-900 rounded-2xl shadow-2xl p-8 border border-gray-800 relative overflow-hidden">
-                        <div className="absolute top-0 left-1/4 w-1/2 h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-60"></div>
-
-                        <div className="text-center mb-6">
-                            <div className="inline-flex items-center justify-center p-3.5 bg-orange-500/10 text-cf-brand rounded-2xl mb-4 border border-orange-500/20">
-                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                            </div>
-                            <h1 className="text-2xl font-extrabold text-white tracking-tight">Cloudflare Manager</h1>
-                            <p className="text-slate-400 text-xs mt-2 leading-relaxed">Gunakan sandi keamanan Anda untuk memproses data Cloudflare secara aman.</p>
-                        </div>
-
-                        <form onSubmit={handleLogin} className="space-y-5">
-                            <div>
-                                <label className="block text-slate-400 text-xs font-semibold tracking-wider uppercase mb-2">Sandi Keamanan</label>
-                                <input 
-                                    type="password"
-                                    value={appPassword}
-                                    onChange={(e) => setAppPassword(e.target.value)}
-                                    placeholder="Masukkan Sandi"
-                                    className="w-full p-3 bg-slate-950 border border-gray-800 rounded-xl text-white placeholder-slate-700 focus:border-cf-brand focus:ring-1 focus:ring-cf-brand outline-none transition-all text-sm font-medium"
-                                />
-                            </div>
-
-                            <div className="flex items-center">
-                                <input 
-                                    type="checkbox" 
-                                    id="remember" 
-                                    checked={rememberMe}
-                                    onChange={(e) => setRememberMe(e.target.checked)}
-                                    className="rounded border-gray-800 text-cf-brand focus:ring-cf-brand bg-slate-950"
-                                />
-                                <label htmlFor="remember" className="ml-2.5 text-slate-400 text-xs cursor-pointer select-none font-medium">Ingat saya di perangkat ini</label>
-                            </div>
-
-                            {error && (
-                                <div className="p-3 bg-rose-950/40 border border-rose-500/20 rounded-xl text-rose-400 text-xs leading-relaxed font-medium">
-                                    ⚠️ {error}
-                                </div>
-                            )}
-
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-3 bg-cf-brand hover:bg-cf-brandHover text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-orange-500/10 disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {loading ? "Memverifikasi..." : "Masuk Dasbor Keamanan"}
-                            </button>
-                        </form>
-                    </div>
-                );
-            }
+            // Melakukan penyaringan pencarian subdomain di sisi klien
+            const filteredRecords = records.filter(rec => 
+                rec.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                rec.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                rec.type.toLowerCase().includes(searchQuery.toLowerCase())
+            );
 
             return (
-                <div className="w-full max-w-6xl mx-auto space-y-6 py-6 px-4 relative">
-                    
-                    {/* UI Toast Notifikasi Kustom */}
-                    {toast.show && (
-                        <div className={`fixed top-4 right-4 z-50 flex items-center p-4 rounded-xl shadow-2xl border text-sm transition-all duration-300 ${
-                            toast.type === "success" ? "bg-emerald-950 border-emerald-500/30 text-emerald-300" :
-                            toast.type === "error" ? "bg-rose-950 border-rose-500/30 text-rose-300" :
-                            "bg-slate-900 border-slate-800 text-slate-300"
-                        }`}>
-                            <span className="mr-2">{toast.type === "success" ? "✨" : toast.type === "error" ? "❌" : "ℹ️"}</span>
-                            {toast.message}
-                        </div>
-                    )}
-
-                    {/* UI Modal Konfirmasi Hapus Kustom */}
-                    {confirmModal.show && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                            <div className="bg-gray-900 border border-gray-800 max-w-md w-full p-6 rounded-2xl shadow-2xl space-y-4">
-                                <h3 className="text-base font-bold text-white">⚠️ Konfirmasi Penghapusan</h3>
-                                <p className="text-slate-400 text-xs leading-relaxed">
-                                    Apakah Anda benar-benar yakin ingin menghapus subdomain <strong className="text-white font-semibold">{confirmModal.recordName}</strong>? Tindakan ini tidak dapat dibatalkan.
-                                </p>
-                                <div className="flex gap-3 justify-end pt-2">
-                                    <button 
-                                        onClick={() => setConfirmModal({ show: false, recordId: null, recordName: "" })}
-                                        className="px-4 py-2 bg-slate-950 hover:bg-slate-900 border border-gray-800 rounded-lg text-xs font-semibold text-slate-400"
-                                    >
-                                        Batal
-                                    </button>
-                                    <button 
-                                        onClick={executeDeleteRecord}
-                                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all"
-                                    >
-                                        Hapus Permanen
-                                    </button>
+                <div className="min-h-screen flex flex-col justify-between">
+                    {/* Header Navigasi */}
+                    <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
+                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h1 className="text-sm sm:text-base font-bold text-white tracking-wide">CF DNS Manager</h1>
+                                    <p className="text-[10px] text-slate-500 font-semibold tracking-wider uppercase">Direct Console</p>
                                 </div>
                             </div>
-                        </div>
-                    )}
-
-                    {/* Header Dasbor */}
-                    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 bg-gray-900 border border-gray-800 rounded-2xl gap-4 shadow-xl">
-                        <div className="flex items-center gap-3.5">
-                            <span className="text-4xl filter drop-shadow-sm">⚡</span>
-                            <div>
-                                <h1 className="text-xl font-extrabold text-white tracking-tight">Subdomain Creator Pro</h1>
-                                <p className="text-slate-400 text-xs mt-1">Google Apps Script Secure Bridge & Cloudflare API (Mode Zero-Config)</p>
+                            
+                            <div className="flex items-center gap-3">
+                                <span className="flex h-2.5 w-2.5 relative">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                </span>
+                                <span className="text-xs text-slate-400 font-medium bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700/60">
+                                    Terhubung ke GAS Bridge
+                                </span>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-3 w-full sm:w-auto">
-                            <button 
-                                onClick={fetchDnsRecords}
-                                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border border-slate-700/50"
-                                title="Segarkan Data"
-                            >
-                                🔄 Segarkan
-                            </button>
-                            <button 
-                                onClick={handleLogout}
-                                className="p-2.5 bg-rose-950/20 hover:bg-rose-950/40 text-rose-400 border border-rose-900/30 rounded-xl text-xs font-semibold transition-all"
-                            >
-                                Keluar Aplikasi 🚪
-                            </button>
                         </div>
                     </header>
 
-                    {/* Layout Utama 2 Kolom */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        
-                        {/* Kolom Kiri: Form Buat Record */}
-                        <div className="space-y-6">
-                            <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
-                                <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                                    🌐 Buat Subdomain Baru
+                    {/* Layout Utama Dasbor */}
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                            
+                            {/* Panel Kiri: Form Buat Subdomain */}
+                            <section className="lg:col-span-5 bg-slate-900 border border-slate-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-orange-600/5 rounded-full blur-2xl"></div>
+                                
+                                <h2 className="text-base font-bold text-white mb-1 flex items-center gap-2">
+                                    <span className="w-1 h-4 bg-orange-500 rounded"></span>
+                                    Buat Subdomain Baru
                                 </h2>
-                                <form onSubmit={handleCreateSubdomain} className="space-y-4">
-                                    <div>
-                                        <label className="block text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-1.5">Tipe Record</label>
-                                        <select 
-                                            value={dnsType} 
-                                            onChange={(e) => setDnsType(e.target.value)}
-                                            className="w-full p-2.5 bg-slate-950 border border-gray-800 rounded-lg text-xs font-semibold text-slate-300 focus:border-cf-brand outline-none"
-                                        >
-                                            <option value="A">A (IPv4 Address)</option>
-                                            <option value="AAAA">AAAA (IPv6 Address)</option>
-                                            <option value="CNAME">CNAME (Alias)</option>
-                                            <option value="TXT">TXT (Text)</option>
-                                        </select>
-                                    </div>
+                                <p className="text-xs text-slate-500 mb-6">Tambahkan record DNS A, CNAME, atau AAAA dengan cepat.</p>
 
+                                <form onSubmit={handleCreateRecord} className="space-y-4">
                                     <div>
-                                        <label className="block text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-1.5">Nama Subdomain</label>
-                                        <div className="flex items-center bg-slate-950 border border-gray-800 rounded-lg overflow-hidden focus-within:border-cf-brand">
+                                        <label className="block text-xs font-semibold text-slate-400 mb-1.5">Nama Subdomain</label>
+                                        <div className="flex rounded-lg shadow-sm border border-slate-800 bg-slate-950/80 overflow-hidden focus-within:border-orange-500/50 focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors">
                                             <input 
                                                 type="text" 
-                                                value={subdomainName}
-                                                onChange={(e) => setSubdomainName(e.target.value)}
+                                                required
                                                 placeholder="contoh: blog, api, panel"
-                                                className="w-full p-2.5 bg-transparent text-xs text-slate-300 placeholder-slate-700 outline-none font-medium"
+                                                value={subdomain}
+                                                onChange={(e) => setSubdomain(e.target.value)}
+                                                className="w-full bg-transparent px-3 py-2.5 text-sm text-slate-200 outline-none placeholder:text-slate-600"
                                             />
+                                            <span className="flex items-center px-3 bg-slate-900 border-l border-slate-800 text-xs font-semibold text-slate-500">
+                                                .
+                                            </span>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-1.5">Target Isi / Konten</label>
+                                        <label className="block text-xs font-semibold text-slate-400 mb-1.5">Domain Utama</label>
                                         <input 
                                             type="text" 
-                                            value={targetContent}
-                                            onChange={(e) => setTargetContent(e.target.value)}
-                                            placeholder={dnsType === "CNAME" ? "contoh.github.io" : "contoh: 192.168.1.1"}
-                                            className="w-full p-2.5 bg-slate-950 border border-gray-800 rounded-lg text-xs text-slate-300 placeholder-slate-700 focus:border-cf-brand outline-none"
+                                            required
+                                            placeholder="contoh: domainanda.com"
+                                            value={domainUtama}
+                                            onChange={(e) => setDomainUtama(e.target.value)}
+                                            className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 placeholder:text-slate-600 transition-colors"
                                         />
                                     </div>
 
-                                    {/* Proxy Cloudflare & TTL */}
-                                    <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-gray-800/80">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xl filter drop-shadow">☁️</span>
-                                            <div>
-                                                <div className="text-[11px] font-bold text-slate-300">Cloudflare Proxy</div>
-                                                <div className="text-[9px] text-slate-550 font-medium">Lewatkan trafik via Cloudflare</div>
-                                            </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-400 mb-1.5">Tipe DNS</label>
+                                            <select 
+                                                value={recordType}
+                                                onChange={(e) => setRecordType(e.target.value)}
+                                                className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors cursor-pointer"
+                                            >
+                                                <option value="A">A (IPv4)</option>
+                                                <option value="CNAME">CNAME (Alias)</option>
+                                                <option value="AAAA">AAAA (IPv6)</option>
+                                            </select>
                                         </div>
-                                        <button
-                                            type="button"
-                                            disabled={dnsType === "TXT"}
-                                            onClick={() => setIsProxied(!isProxied)}
-                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-extrabold tracking-wide uppercase transition-all ${
-                                                dnsType === "TXT" ? "bg-slate-900 text-slate-700 cursor-not-allowed" :
-                                                isProxied ? "bg-orange-500/10 text-orange-400 border border-orange-500/25 shadow-sm" : "bg-slate-900 text-slate-400 border border-slate-800"
-                                            }`}
-                                        >
-                                            {dnsType === "TXT" ? "N/A" : isProxied ? "Proxied" : "DNS Only"}
-                                        </button>
+
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-400 mb-1.5">TTL</label>
+                                            <select 
+                                                value={ttl}
+                                                onChange={(e) => setTtl(e.target.value)}
+                                                className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors cursor-pointer"
+                                            >
+                                                <option value="1">Automatic</option>
+                                                <option value="60">1 Menit</option>
+                                                <option value="300">5 Menit</option>
+                                                <option value="3600">1 Jam</option>
+                                            </select>
+                                        </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-1.5">TTL (Time to Live)</label>
-                                        <select 
-                                            value={ttlValue} 
-                                            onChange={(e) => setTtlValue(e.target.value)}
-                                            className="w-full p-2 bg-slate-950 border border-gray-800 rounded-lg text-xs text-slate-400 focus:border-cf-brand outline-none font-medium"
-                                        >
-                                            <option value="1">Auto</option>
-                                            <option value="60">1 Menit</option>
-                                            <option value="300">5 Menit</option>
-                                            <option value="3600">1 Jam</option>
-                                        </select>
+                                        <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                                            {recordType === "A" ? "IP Target (IPv4)" : recordType === "AAAA" ? "IP Target (IPv6)" : "Domain Target (Alias)"}
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            placeholder={recordType === "CNAME" ? "contoh: ghs.google.com" : "contoh: 192.168.1.1"}
+                                            value={targetValue}
+                                            onChange={(e) => setTargetValue(e.target.value)}
+                                            className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 placeholder:text-slate-600 transition-colors"
+                                        />
                                     </div>
 
-                                    <button
-                                        type="submit"
-                                        disabled={recordsLoading}
-                                        className="w-full py-3 bg-cf-brand hover:bg-cf-brandHover text-white text-xs font-extrabold uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-orange-500/10 flex items-center justify-center gap-2 disabled:opacity-55"
+                                    {/* Opsi Cloudflare Proxy Switch */}
+                                    {(recordType === "A" || recordType === "CNAME") && (
+                                        <div className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800/60">
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-xs font-semibold text-slate-300">Cloudflare Proxy</span>
+                                                <span className="text-[10px] text-slate-500">Sembunyikan IP server asli Anda</span>
+                                            </div>
+                                            <button 
+                                                type="button"
+                                                onClick={() => setProxied(!proxied)}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${
+                                                    proxied ? 'bg-orange-500' : 'bg-slate-800'
+                                                }`}
+                                            >
+                                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${
+                                                    proxied ? 'translate-x-6' : 'translate-x-1'
+                                                }`} />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <button 
+                                        type="submit" 
+                                        disabled={btnLoading}
+                                        className="w-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white font-bold text-sm py-3 px-4 rounded-xl shadow-lg shadow-orange-500/10 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 mt-2"
                                     >
-                                        {recordsLoading ? "Sedang Memproses..." : "Buat Subdomain Sekarang"}
+                                        {btnLoading ? (
+                                            <>
+                                                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                </svg>
+                                                Proses Pembuatan...
+                                            </>
+                                        ) : "Buat Subdomain"}
                                     </button>
                                 </form>
-                            </div>
-                        </div>
+                            </section>
 
-                        {/* Kolom Kanan: Tabel Subdomain */}
-                        <div className="lg:col-span-2 bg-gray-900 rounded-2xl border border-gray-800 p-6 flex flex-col justify-between shadow-xl">
-                            <div>
-                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                                        📊 Daftar Subdomain Cloudflare
-                                    </h2>
-                                    {/* Filter Controls */}
-                                    <div className="flex gap-2.5 w-full sm:w-auto">
+                            {/* Panel Kanan: Daftar Record & Pencarian */}
+                            <section className="lg:col-span-7 bg-slate-900 border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col min-h-[450px]">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                    <div>
+                                        <h2 className="text-base font-bold text-white flex items-center gap-2">
+                                            <span className="w-1 h-4 bg-orange-500 rounded"></span>
+                                            Daftar Subdomain Aktif
+                                        </h2>
+                                        <p className="text-xs text-slate-500">Menampilkan record DNS yang terdaftar di zona ini.</p>
+                                    </div>
+                                    
+                                    {/* Input Search Record */}
+                                    <div className="relative">
                                         <input 
-                                            type="text" 
+                                            type="text"
+                                            placeholder="Cari subdomain..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            placeholder="Cari domain..."
-                                            className="p-2 bg-slate-950 border border-gray-800 rounded-lg text-xs text-slate-300 placeholder-slate-700 outline-none focus:border-cf-brand w-full sm:w-48 font-medium"
+                                            className="w-full sm:w-60 bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors placeholder:text-slate-600"
                                         />
-                                        <select 
-                                            value={filterType} 
-                                            onChange={(e) => setFilterType(e.target.value)}
-                                            className="p-2 bg-slate-950 border border-gray-800 rounded-lg text-xs text-slate-400 font-semibold outline-none"
-                                        >
-                                            <option value="ALL">Semua</option>
-                                            <option value="A">A</option>
-                                            <option value="AAAA">AAAA</option>
-                                            <option value="CNAME">CNAME</option>
-                                            <option value="TXT">TXT</option>
-                                        </select>
+                                        <svg className="w-4 h-4 text-slate-600 absolute left-3 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
                                     </div>
                                 </div>
 
-                                {recordsError && (
-                                    <div className="p-4 bg-rose-950/20 border border-rose-900/30 rounded-xl text-rose-400 text-xs mb-4">
-                                        ⚠️ {recordsError}
-                                    </div>
-                                )}
-
-                                {recordsLoading && records.length === 0 ? (
-                                    <div className="text-center py-16">
-                                        <svg className="animate-spin h-8 w-8 text-cf-brand mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                {loading ? (
+                                    /* Tampilan Loading Spinner */
+                                    <div className="flex-grow flex flex-col items-center justify-center gap-3 py-12">
+                                        <svg className="animate-spin h-8 w-8 text-orange-500" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                         </svg>
-                                        <p className="text-slate-400 text-xs font-semibold">Mengambil data subdomain langsung via Google Server...</p>
+                                        <p className="text-xs text-slate-500">Sedang memproses database Cloudflare...</p>
                                     </div>
                                 ) : filteredRecords.length === 0 ? (
-                                    <div className="text-center py-16 border border-dashed border-slate-800 rounded-xl">
-                                        <span className="text-3xl block mb-2">📭</span>
-                                        <p className="text-slate-400 text-xs font-semibold">Tidak ada record DNS yang ditemukan.</p>
-                                        <p className="text-slate-500 text-[10px] mt-1.5 leading-relaxed">Gunakan form di samping kiri untuk membuat subdomain baru.</p>
+                                    /* Tampilan Kosong */
+                                    <div className="flex-grow flex flex-col items-center justify-center text-center py-12 border-2 border-dashed border-slate-800 rounded-xl p-8 bg-slate-950/20">
+                                        <svg className="w-10 h-10 text-slate-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                        </svg>
+                                        <p className="text-sm font-semibold text-slate-400">Tidak ada record subdomain ditemukan</p>
+                                        <p className="text-xs text-slate-600 mt-1 max-w-xs">Pastikan kredensial di Kode.gs Anda sudah benar, atau coba ubah kata kunci pencarian Anda.</p>
+                                        <button 
+                                            onClick={fetchRecords} 
+                                            className="mt-4 px-4 py-2 bg-slate-850 hover:bg-slate-800 text-xs text-slate-300 font-semibold border border-slate-700/65 rounded-lg transition-colors"
+                                        >
+                                            Muat Ulang Data
+                                        </button>
                                     </div>
                                 ) : (
-                                    <div className="overflow-x-auto rounded-xl border border-gray-800/80 bg-slate-950">
+                                    /* Tabel Daftar Subdomain */
+                                    <div className="overflow-x-auto rounded-xl border border-slate-800/80 bg-slate-950/30">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
-                                                <tr className="bg-slate-900/60 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-gray-850">
-                                                    <th className="p-3.5">Tipe</th>
-                                                    <th className="p-3.5">Nama Domain</th>
-                                                    <th className="p-3.5">Konten Target</th>
-                                                    <th className="p-3.5">Proxy</th>
-                                                    <th className="p-3.5 text-center">Aksi</th>
+                                                <tr className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-bold tracking-wider text-slate-400">
+                                                    <th className="py-3 px-4">Subdomain</th>
+                                                    <th className="py-3 px-3">Tipe</th>
+                                                    <th className="py-3 px-3">Target</th>
+                                                    <th className="py-3 px-3">Proxy</th>
+                                                    <th className="py-3 px-4 text-right">Aksi</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-slate-900 text-xs">
+                                            <tbody className="divide-y divide-slate-850/60 text-xs">
                                                 {filteredRecords.map((rec) => (
-                                                    <tr key={rec.id} className="hover:bg-slate-900/30 transition-all text-slate-300">
-                                                        <td className="p-3.5">
-                                                            <span className="px-2 py-1 bg-slate-900 border border-slate-800 text-[10px] font-extrabold rounded text-slate-300 tracking-wide">
+                                                    <tr key={rec.id} className="hover:bg-slate-900/30 transition-colors">
+                                                        <td className="py-3.5 px-4 font-bold text-slate-200">
+                                                            {rec.name}
+                                                        </td>
+                                                        <td className="py-3.5 px-3">
+                                                            <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                                                                rec.type === 'A' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                                                                rec.type === 'CNAME' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                                                'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                                                            }`}>
                                                                 {rec.type}
                                                             </span>
                                                         </td>
-                                                        <td className="p-3.5 font-bold text-white break-all">{rec.name}</td>
-                                                        <td className="p-3.5 font-mono text-slate-400 break-all">{rec.content}</td>
-                                                        <td className="p-3.5">
+                                                        <td className="py-3.5 px-3 text-slate-400 max-w-[160px] truncate" title={rec.content}>
+                                                            {rec.content}
+                                                        </td>
+                                                        <td className="py-3.5 px-3">
                                                             {rec.proxied ? (
-                                                                <span className="text-orange-400 flex items-center gap-1 font-bold text-[10px] uppercase tracking-wider" title="Trafik dilewatkan Cloudflare">
-                                                                    ☁️ Proxied
+                                                                <span className="flex items-center gap-1.5 text-orange-400 font-medium" title="Proxied through Cloudflare">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                                                                    Proxied
                                                                 </span>
                                                             ) : (
-                                                                <span className="text-slate-500 flex items-center gap-1 text-[10px] uppercase tracking-wider" title="Trafik langsung ke IP">
-                                                                    ◽ DNS Only
+                                                                <span className="flex items-center gap-1.5 text-slate-500 font-medium" title="DNS Only">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                                                                    Bypass
                                                                 </span>
                                                             )}
                                                         </td>
-                                                        <td className="p-3.5 text-center">
-                                                            <button
-                                                                onClick={() => triggerDeleteConfirm(rec.id, rec.name)}
-                                                                disabled={recordsLoading}
-                                                                className="px-2.5 py-1.5 bg-rose-950/20 hover:bg-rose-950/40 text-rose-400 border border-rose-900/30 rounded-lg hover:border-rose-500 transition-all text-[11px] font-bold"
+                                                        <td className="py-3.5 px-4 text-right">
+                                                            <button 
+                                                                onClick={() => {
+                                                                    setConfirmDeleteId(rec.id);
+                                                                    setConfirmDeleteName(rec.name);
+                                                                }}
+                                                                className="p-2 text-slate-500 hover:text-rose-400 bg-slate-900 hover:bg-rose-500/10 rounded-lg border border-slate-800 hover:border-rose-500/20 transition-all active:scale-95"
+                                                                title="Hapus Subdomain"
                                                             >
-                                                                Hapus
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -605,31 +487,77 @@
                                         </table>
                                     </div>
                                 )}
-                            </div>
 
-                            <div className="mt-6 pt-4 border-t border-gray-800/80 flex flex-col sm:flex-row justify-between text-[11px] text-slate-500 font-medium gap-2">
-                                <div>Menampilkan {filteredRecords.length} dari total {records.length} record DNS</div>
-                                <div className="flex items-center gap-1.5">
-                                    Status Jembatan: 
-                                    <span className="text-emerald-400 font-extrabold flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                        Terhubung Secara Aman (Server-Side)
-                                    </span>
+                                <div className="mt-auto pt-4 flex justify-between items-center text-[11px] text-slate-600">
+                                    <span>Menampilkan {filteredRecords.length} dari {records.length} total record</span>
+                                    <button 
+                                        onClick={fetchRecords} 
+                                        className="hover:text-slate-300 flex items-center gap-1 transition-colors"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 4.79M9 9h1.5m1.5 0H12v-.5V6m0 3v3h.5m-3-3h3" />
+                                        </svg>
+                                        Refresh Manual
+                                    </button>
+                                </div>
+                            </section>
+
+                        </div>
+                    </main>
+
+                    {/* Footer Informasi */}
+                    <footer className="border-t border-slate-900 bg-slate-950/40 py-6 mt-12 text-center text-xs text-slate-600">
+                        <div className="max-w-7xl mx-auto px-4">
+                            <p>© 2026 CF Subdomain Console - Dibuat untuk Efisiensi & Keamanan Mandiri</p>
+                        </div>
+                    </footer>
+
+                    {/* Dialog Konfirmasi Hapus Custom (Pengganti confirm() Browser) */}
+                    {confirmDeleteId && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-fade-in">
+                            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative">
+                                <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    Konfirmasi Hapus
+                                </h3>
+                                <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+                                    Apakah Anda yakin ingin menghapus subdomain <strong className="text-slate-200">{confirmDeleteName}</strong> secara permanen? Tindakan ini tidak dapat dibatalkan.
+                                </p>
+                                <div className="flex gap-3 justify-end">
+                                    <button 
+                                        onClick={() => setConfirmDeleteId(null)}
+                                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700/50 transition-colors"
+                                    >
+                                        Batal
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteRecord(confirmDeleteId)}
+                                        className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-semibold shadow-lg shadow-rose-600/15 transition-colors"
+                                    >
+                                        Ya, Hapus
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
+
+                    {/* Notifikasi Toast */}
+                    {toast && (
+                        <Toast 
+                            message={toast.message} 
+                            type={toast.type} 
+                            onClose={() => setToast(null)} 
+                        />
+                    )}
                 </div>
             );
         }
 
+        // Render Aplikasi
         const root = ReactDOM.createRoot(document.getElementById("root"));
         root.render(<App />);
     </script>
-
-    <!-- Footer -->
-    <footer class="py-6 text-center text-[11px] text-slate-500 border-t border-gray-900">
-        <p>&copy; 2026 Cloudflare Subdomain Manager. Secured with Zero-Config Server Bridge.</p>
-    </footer>
 </body>
 </html>
