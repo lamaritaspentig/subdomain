@@ -16,6 +16,7 @@
         }
         /* Custom scrollbar bergaya gelap */
         ::-webkit-scrollbar {
+            height: 8px;
             width: 8px;
         }
         ::-webkit-scrollbar-track {
@@ -40,7 +41,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
-        // 1. TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT (GAS) ANDA DI SINI
+        // 1. TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
         const CONFIG_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIVztg9DEorq9cVW3UOePGYxNPykgbBjewh72U3udyMW_9PKxhU0ceqQTXKRskwmWxmQ/exec";
         
         // 2. UBAH KATA SANDI LOGIN ADMIN ANDA DI SINI (Default: admin123)
@@ -61,7 +62,7 @@
                 <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl border transition-all transform duration-300 translate-y-0 scale-100 ${
                     isSuccess ? 'bg-emerald-950/90 border-emerald-500/30 text-emerald-300' :
                     isError ? 'bg-rose-950/90 border-rose-500/30 text-rose-300' :
-                    'bg-slate-900/90 border-slate-750 text-slate-300'
+                    'bg-slate-900/90 border-slate-700 text-slate-300'
                 }`}>
                     {isSuccess && (
                         <svg className="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,8 +137,8 @@
                     sessionStorage.setItem("admin_session_active", "true");
                     showToast("Login berhasil! Selamat datang kembali.", "success");
                 } else {
-                    setLoginError("Kata sandi salah!");
-                    showToast("Login gagal, periksa sandi Anda.", "error");
+                    setLoginError("Kata sandi yang Anda masukkan salah!");
+                    showToast("Login gagal, periksa kembali sandi Anda.", "error");
                 }
             };
 
@@ -180,7 +181,7 @@
             const handleCreateRecord = async (e) => {
                 e.preventDefault();
                 if (!subdomain || !domainUtama || !targetValue) {
-                    showToast("Harap lengkapi seluruh kolom formulir!", "error");
+                    showToast("Harap lengkapi semua isian formulir!", "error");
                     return;
                 }
 
@@ -208,7 +209,7 @@
 
                     const data = await response.json();
                     if (data.success) {
-                        showToast(`Sukses! Subdomain ${fullDomainName} berhasil dibuat.`, "success");
+                        showToast(`Sukses! Subdomain ${fullDomainName} berhasil diaktifkan.`, "success");
                         setSubdomain("");
                         setTargetValue("");
                         fetchRecords();
@@ -261,7 +262,7 @@
                 tempInput.select();
                 document.execCommand("copy");
                 document.body.removeChild(tempInput);
-                showToast(`Teks "${text}" disalin ke clipboard!`, "success");
+                showToast(`Subdomain "${text}" berhasil disalin!`, "success");
             };
 
             const filteredRecords = records.filter(rec => 
@@ -284,11 +285,11 @@
                                     </svg>
                                 </div>
                                 <h1 className="text-xl font-bold text-white tracking-wide">CF DNS Manager</h1>
-                                <p className="text-xs text-slate-450 mt-1.5 font-medium">Konsol Keamanan Akses Terbatas</p>
+                                <p className="text-xs text-slate-400 mt-1.5 font-medium">Konsol Keamanan Akses Terbatas</p>
                             </div>
 
                             {loginError && (
-                                <div className="mb-5 p-3.5 bg-rose-950/40 border border-rose-500/20 rounded-xl text-xs text-rose-450 font-medium flex items-center gap-2">
+                                <div className="mb-5 p-3.5 bg-rose-950/40 border border-rose-500/20 rounded-xl text-xs text-rose-400 font-medium flex items-center gap-2">
                                     <svg className="w-4 h-4 shrink-0 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                     </svg>
@@ -337,8 +338,8 @@
 
                             <div className="mt-6 text-center border-t border-slate-800/60 pt-5">
                                 <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block mb-1">Keamanan Sistem</span>
-                                <p className="text-[11px] text-slate-500 leading-relaxed">
-                                    Masukkan kata sandi admin Anda untuk mengaktifkan seluruh konsol subdomain Anda.
+                                <p className="text-[11px] text-slate-400 leading-relaxed">
+                                    Gunakan kata sandi admin Anda untuk membuka konsol pengelolaan subdomain.
                                 </p>
                             </div>
                         </div>
@@ -385,20 +386,20 @@
                         </div>
                     </header>
 
-                    {/* Layout Utama Dasbor */}
+                    {/* Layout Utama Dasbor (4 Kolom Form : 8 Kolom Tabel) */}
                     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                             
-                            {/* Panel Kiri: Form Pembuatan Subdomain */}
-                            <div className="lg:col-span-5">
+                            {/* Panel Kiri: Form Pembuatan Subdomain (4 Kolom) */}
+                            <div className="lg:col-span-4">
                                 <section className="bg-slate-900 border border-slate-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
                                     <div className="absolute top-0 right-0 w-24 h-24 bg-orange-600/5 rounded-full blur-2xl"></div>
                                     
                                     <h2 className="text-base font-bold text-white mb-1 flex items-center gap-2">
                                         <span className="w-1 h-4 bg-orange-500 rounded"></span>
-                                        Buat Subdomain Baru
+                                        Buat Subdomain
                                     </h2>
-                                    <p className="text-xs text-slate-400 mb-6">Tambahkan record DNS A, CNAME, atau AAAA dengan cepat.</p>
+                                    <p className="text-xs text-slate-400 mb-6">Tambahkan record A, CNAME, atau AAAA baru.</p>
 
                                     <form onSubmit={handleCreateRecord} className="space-y-4">
                                         <div>
@@ -412,7 +413,7 @@
                                                     onChange={(e) => setSubdomain(e.target.value)}
                                                     className="w-full bg-transparent px-3 py-2.5 text-sm text-slate-200 outline-none placeholder:text-slate-600"
                                                 />
-                                                <span className="flex items-center px-3 bg-slate-900 border-l border-slate-800 text-xs font-semibold text-slate-500">
+                                                <span className="flex items-center px-2.5 bg-slate-900 border-l border-slate-800 text-xs font-semibold text-slate-500">
                                                     .
                                                 </span>
                                             </div>
@@ -430,13 +431,13 @@
                                             />
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-2 gap-3">
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-400 mb-1.5">Tipe DNS</label>
                                                 <select 
                                                     value={recordType}
                                                     onChange={(e) => setRecordType(e.target.value)}
-                                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-350 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors cursor-pointer"
+                                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors cursor-pointer"
                                                 >
                                                     <option value="A">A (IPv4)</option>
                                                     <option value="CNAME">CNAME (Alias)</option>
@@ -449,7 +450,7 @@
                                                 <select 
                                                     value={ttl}
                                                     onChange={(e) => setTtl(e.target.value)}
-                                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-350 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors cursor-pointer"
+                                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors cursor-pointer"
                                                 >
                                                     <option value="1">Automatic</option>
                                                     <option value="60">1 Menit</option>
@@ -477,7 +478,7 @@
                                             <div className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800/60">
                                                 <div className="flex flex-col gap-0.5">
                                                     <span className="text-xs font-semibold text-slate-300">Cloudflare Proxy</span>
-                                                    <span className="text-[10px] text-slate-500">Sembunyikan IP server asli Anda</span>
+                                                    <span className="text-[10px] text-slate-500">Sembunyikan IP server asli</span>
                                                 </div>
                                                 <button 
                                                     type="button"
@@ -504,7 +505,7 @@
                                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                                     </svg>
-                                                    Proses Pembuatan...
+                                                    Proses...
                                                 </>
                                             ) : "Daftarkan Subdomain"}
                                         </button>
@@ -512,15 +513,15 @@
                                 </section>
                             </div>
 
-                            {/* Panel Kanan: Daftar Record Active */}
-                            <section className="lg:col-span-7 bg-slate-900 border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col min-h-[450px]">
+                            {/* Panel Kanan: Daftar Record Active yang Lebih Luas (8 Kolom) */}
+                            <section className="lg:col-span-8 bg-slate-900 border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col min-h-[450px]">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                                     <div>
                                         <h2 className="text-base font-bold text-white flex items-center gap-2">
                                             <span className="w-1 h-4 bg-orange-500 rounded"></span>
                                             Daftar Subdomain Aktif
                                         </h2>
-                                        <p className="text-xs text-slate-400">Menampilkan seluruh data record DNS yang terhubung.</p>
+                                        <p className="text-xs text-slate-400">Menampilkan seluruh data record DNS yang terdaftar.</p>
                                     </div>
                                     
                                     <div className="relative">
@@ -529,29 +530,29 @@
                                             placeholder="Cari subdomain..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full sm:w-60 bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors placeholder:text-slate-600"
+                                            className="w-full sm:w-64 bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-colors placeholder:text-slate-600"
                                         />
-                                        <svg className="w-4 h-4 text-slate-650 absolute left-3 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-4 h-4 text-slate-600 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                         </svg>
                                     </div>
                                 </div>
 
                                 {loading ? (
-                                    <div className="flex-grow flex flex-col items-center justify-center gap-3 py-12">
+                                    <div className="flex-grow flex flex-col items-center justify-center gap-3 py-16">
                                         <svg className="animate-spin h-8 w-8 text-orange-500" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                         </svg>
-                                        <p className="text-xs text-slate-450">Membaca basis data Cloudflare...</p>
+                                        <p className="text-xs text-slate-400">Membaca data Cloudflare...</p>
                                     </div>
                                 ) : filteredRecords.length === 0 ? (
-                                    <div className="flex-grow flex flex-col items-center justify-center text-center py-12 border-2 border-dashed border-slate-800 rounded-xl p-8 bg-slate-950/20">
+                                    <div className="flex-grow flex flex-col items-center justify-center text-center py-16 border-2 border-dashed border-slate-800 rounded-xl p-8 bg-slate-950/20">
                                         <svg className="w-10 h-10 text-slate-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                                         </svg>
                                         <p className="text-sm font-semibold text-slate-400">Tidak ada subdomain ditemukan</p>
-                                        <p className="text-xs text-slate-500 mt-1 max-w-xs">Periksa kembali konfigurasi domain utama atau buat subdomain baru di sebelah kiri.</p>
+                                        <p className="text-xs text-slate-500 mt-1 max-w-xs">Periksa kembali kueri pencarian Anda atau daftarkan subdomain baru di panel sebelah kiri.</p>
                                         <button 
                                             onClick={fetchRecords} 
                                             className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-semibold border border-slate-700/65 rounded-lg transition-colors"
@@ -560,27 +561,28 @@
                                         </button>
                                     </div>
                                 ) : (
+                                    /* Tabel dengan Ruang Ekstra & Min-Width Kolom */
                                     <div className="overflow-x-auto rounded-xl border border-slate-800/80 bg-slate-950/30">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
-                                                <tr className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-bold tracking-wider text-slate-400">
-                                                    <th className="py-3 px-4">Subdomain</th>
-                                                    <th className="py-3 px-3">Tipe</th>
-                                                    <th className="py-3 px-3">Target</th>
-                                                    <th className="py-3 px-3">Proxy</th>
-                                                    <th className="py-3 px-4 text-right">Aksi</th>
+                                                <tr className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+                                                    <th className="py-3.5 px-5 min-w-[200px]">Subdomain</th>
+                                                    <th className="py-3.5 px-4 min-w-[80px]">Tipe</th>
+                                                    <th className="py-3.5 px-4 min-w-[200px]">Target</th>
+                                                    <th className="py-3.5 px-4 min-w-[100px]">Proxy</th>
+                                                    <th className="py-3.5 px-5 min-w-[80px] text-right">Aksi</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-slate-850/60 text-xs">
+                                            <tbody className="divide-y divide-slate-800/60 text-xs">
                                                 {filteredRecords.map((rec) => (
-                                                    <tr key={rec.id} className="hover:bg-slate-900/30 transition-colors">
-                                                        <td className="py-3.5 px-4 font-bold text-slate-200">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="truncate max-w-[140px] sm:max-w-none">{rec.name}</span>
+                                                    <tr key={rec.id} className="hover:bg-slate-900/40 transition-colors">
+                                                        <td className="py-4 px-5 font-bold text-slate-200 min-w-[200px]">
+                                                            <div className="flex items-center gap-2.5">
+                                                                <span className="break-all">{rec.name}</span>
                                                                 <button 
                                                                     onClick={() => handleCopyToClipboard(rec.name)}
-                                                                    className="p-1 text-slate-500 hover:text-orange-400 rounded transition-colors"
-                                                                    title="Salin Subdomain"
+                                                                    className="p-1 text-slate-500 hover:text-orange-400 rounded transition-colors shrink-0"
+                                                                    title="Salin Nama Subdomain"
                                                                 >
                                                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m-5 4h6m-6 4h6m-6 4h6" />
@@ -588,8 +590,8 @@
                                                                 </button>
                                                             </div>
                                                         </td>
-                                                        <td className="py-3.5 px-3">
-                                                            <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                                                        <td className="py-4 px-4 min-w-[80px]">
+                                                            <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold ${
                                                                 rec.type === 'A' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
                                                                 rec.type === 'CNAME' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
                                                                 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
@@ -597,10 +599,10 @@
                                                                 {rec.type}
                                                             </span>
                                                         </td>
-                                                        <td className="py-3.5 px-3 text-slate-450 max-w-[140px] truncate" title={rec.content}>
+                                                        <td className="py-4 px-4 text-slate-400 min-w-[200px] max-w-[280px] truncate" title={rec.content}>
                                                             {rec.content}
                                                         </td>
-                                                        <td className="py-3.5 px-3">
+                                                        <td className="py-4 px-4 min-w-[100px]">
                                                             {rec.proxied ? (
                                                                 <span className="flex items-center gap-1.5 text-orange-400 font-medium" title="Proxied through Cloudflare">
                                                                     <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
@@ -613,7 +615,7 @@
                                                                 </span>
                                                             )}
                                                         </td>
-                                                        <td className="py-3.5 px-4 text-right">
+                                                        <td className="py-4 px-5 text-right min-w-[80px]">
                                                             <button 
                                                                 onClick={() => {
                                                                     setConfirmDeleteId(rec.id);
@@ -622,7 +624,7 @@
                                                                 className="p-2 text-slate-500 hover:text-rose-400 bg-slate-900 hover:bg-rose-500/10 rounded-lg border border-slate-800 hover:border-rose-500/20 transition-all active:scale-95"
                                                                 title="Hapus Subdomain"
                                                             >
-                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                                 </svg>
                                                             </button>
@@ -634,11 +636,11 @@
                                     </div>
                                 )}
 
-                                <div className="mt-auto pt-4 flex justify-between items-center text-[11px] text-slate-600">
+                                <div className="mt-auto pt-5 flex justify-between items-center text-[11px] text-slate-500">
                                     <span>Menampilkan {filteredRecords.length} dari {records.length} total record</span>
                                     <button 
                                         onClick={fetchRecords} 
-                                        className="hover:text-slate-350 flex items-center gap-1 transition-colors"
+                                        className="hover:text-slate-300 flex items-center gap-1 transition-colors font-medium"
                                     >
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 4.79M9 9h1.5m1.5 0H12v-.5V6m0 3v3h.5m-3-3h3" />
@@ -658,7 +660,6 @@
                         </div>
                     </footer>
 
-                    {/* Dialog Konfirmasi Hapus Ganda */}
                     {confirmDeleteId && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm">
                             <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative">
@@ -669,7 +670,7 @@
                                     Konfirmasi Hapus Permanen
                                 </h3>
                                 <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-                                    Apakah Anda benar-benar yakin ingin menghapus subdomain <strong className="text-slate-200">{confirmDeleteName}</strong>? Sistem akan memproses perintah langsung ke DNS Cloudflare.
+                                    Apakah Anda benar-benar yakin ingin menghapus subdomain <strong className="text-slate-200">{confirmDeleteName}</strong>? Perintah ini akan langsung diproses ke DNS Cloudflare.
                                 </p>
                                 <div className="flex gap-3 justify-end">
                                     <button 
